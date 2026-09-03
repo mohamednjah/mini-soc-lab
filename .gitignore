@@ -1,0 +1,44 @@
+# Secrets — never commit these
+*.pem
+*.key
+id_rsa*
+*.pfx
+.env
+.env.*
+**/vault.yml
+**/vault_pass*
+credentials.json
+*.ovpn
+
+# Cloud CLI / SDK local state
+.azure/
+.aws/
+*.tfstate
+*.tfstate.backup
+.terraform/
+
+# VM / hypervisor artifacts (large binaries — don't belong in git)
+*.vdi
+*.vmdk
+*.ova
+*.ovf
+*.iso
+.vagrant/
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# Ansible
+*.retry
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/

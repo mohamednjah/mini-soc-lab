@@ -1,0 +1,73 @@
+# Mini-SOC — Detection-Engineering Lab
+
+A home lab built to close recurring gaps found across ~22 real Italian cybersecurity/data job
+descriptions (see the companion [Resume-Creator](https://github.com/) repo's tailored applications):
+SIEM, cloud, hardening, EDR/XDR, Active Directory, automation, and incident response — plus a
+data/ML layer that makes the same project relevant to data-analyst roles.
+
+**The documentation is the deliverable.** Every claim on my CV traces to something in this repo:
+a rule, a screenshot, a metric, or a playbook.
+
+## Status
+
+🚧 In progress — Phase 0 (repo & workspace setup). See [docs/decisions.md](docs/decisions.md) for
+the build log and the [NEXT_PROJECT.md](../Resume-Creator/NEXT_PROJECT.md) plan for the full
+9-phase roadmap.
+
+## Architecture (planned)
+
+```
+                        ┌─────────────────────────┐
+                        │   Azure (free tier)      │
+                        │   Linux VM (agent)        │
+                        │   NSG + IAM least-priv    │
+                        └────────────┬──────────────┘
+                                     │ Wazuh agent
+                                     │ + cloud audit logs
+┌────────────────────────────────────┼──────────────────────┐
+│  Home lab (isolated virtual network)                       │
+│                                     │                       │
+│  ┌──────────────┐  ┌──────────────┐│┌──────────────┐       │
+│  │ Windows Server│  │ Windows      │││ Rocky Linux 9 │       │
+│  │ + AD DS       │  │ client       │││ (RHEL-family) │       │
+│  │ (soclab.local)│  │              │││               │       │
+│  └──────┬───────┘  └──────┬───────┘│└──────┬────────┘       │
+│         │  Sysmon+agent   │ agent   │        │  agent        │
+│         └─────────────────┴─────────┴────────┘               │
+│                            │                                  │
+│                   ┌────────▼─────────┐                        │
+│                   │  Wazuh manager    │  ← SIEM / XDR / SCA    │
+│                   │  (Rocky Linux)    │                        │
+│                   └────────┬──────────┘                        │
+└────────────────────────────┼──────────────────────────────────┘
+                              │ alert export (API)
+                     ┌────────▼─────────┐
+                     │ Python / Pandas   │  ← anomaly detection,
+                     │ + Sktime pipeline │     model evaluation
+                     └───────────────────┘
+```
+
+*(Diagram will be replaced with real screenshots as each phase lands.)*
+
+## Repo layout
+
+```
+infra/            Ansible playbooks + inventory (Phase 6)
+detections/
+  sigma/          Sigma detection rules (Phase 4)
+  cards/          One markdown card per detection: ATT&CK ID, log source,
+                  logic, test, false positives, tuning notes (Phase 4)
+incidents/        Incident response write-ups: timeline, evidence, remediation (Phase 4)
+hardening/        CIS Benchmark controls applied + before/after SCA scores (Phase 5)
+analytics/        Python/Pandas pipeline, anomaly detection, model evaluation (Phase 7)
+cloud/            Cloud node config, NSG rules, misconfiguration demo (Phase 3)
+docs/             Decision log, diagrams, per-phase notes
+```
+
+## What I learned
+
+*(filled in as phases complete)*
+
+## Limitations / next steps
+
+*(filled in at Phase 8)*
