@@ -21,17 +21,41 @@ Format:
 
 ---
 
-## 2026-09-03 — Repo location: standalone folder, not inside Resume-Creator
+## 2026-09-03 — Lab network: VMware NAT on 10.10.10.0/24, static IPs
 - **Status:** Accepted
-- **Context:** The lab needs its own public GitHub repo so it can be linked from the CV and
-  LinkedIn independently of the private CV-tailoring repo.
-- **Decision:** `mini-soc-lab` lives in its own folder (`Desktop/mini-soc`) with its own git
-  history, separate from the Resume-Creator repo that tracks job applications.
-- **Alternatives considered:** a subfolder inside Resume-Creator — rejected because it would mix
-  an eventually-public lab repo with a private CV/job-application repo, and tie their git
-  histories together for no benefit.
-- **Consequences:** Clean separation; the lab repo can be made public without exposing anything
-  from the CV-tailoring work.
+- **Context:** The lab needs internet access (dnf, Windows Update, downloading Wazuh/Sysmon/Atomic
+  Red Team) but must not be reachable from — or able to interfere with — the home LAN. It also needs
+  a stable addressing scheme that will not collide with Azure when the hybrid node lands in Phase 3.
+- **Decision:** Single subnet `10.10.10.0/24` on VMware's NAT network (VMnet8, reconfigured), VMware
+  DHCP disabled, all hosts statically addressed. DC at `.10`, Wazuh manager at `.20`, Windows client
+  at `.30`; `.40`/`.50` reserved. Full plan in `network-plan.md`.
+- **Alternatives considered:**
+  - **Bridged networking** — rejected: puts VMs on the home LAN as peers, so the lab DC would compete
+    with the home router and lab traffic could reach real household devices.
+  - **Host-only networking** — rejected: no internet at all, which blocks package installs and every
+    tool download the build depends on. (Still the right mode if live malware is ever detonated —
+    noted as a caveat in the network plan.)
+  - **`192.168.x.x` addressing** — rejected: overlaps the ranges home routers almost always use.
+  - **Leaving VMware DHCP enabled** — rejected: it hands out VMware's DNS server, which breaks
+    Active Directory domain joins, and servers should not have moving addresses anyway.
+- **Consequences:** Outbound internet without inbound exposure; no subnet overlap with Azure's default
+  `10.0.0.0/16` when the Phase 3 link is built. Costs a little manual work — every host is configured
+  by hand, and the DC must be given a DNS forwarder so it can still resolve public names.
+
+## 2026-09-03 — Hypervisor: VMware Workstation Pro over VirtualBox
+- **Status:** Accepted
+- **Context:** Phase 1 needs 3 VMs running concurrently on one Windows host (Domain Controller,
+  Windows client, Rocky Linux), plus a Wazuh manager later — snapshot reliability and networking
+  flexibility (host-only/internal networks, NAT) matter more here than on a single-VM setup.
+- **Decision:** VMware Workstation Pro (free for personal use as of 2024).
+- **Alternatives considered:**
+  - VirtualBox — free, cross-platform, but generally weaker snapshot performance and less
+    reliable virtual networking under multi-VM load than Workstation Pro.
+  - Hyper-V — built into Windows at no cost, but conflicts with other hypervisors on the same
+    host and has rougher edges for isolated lab networking/AD scenarios.
+- **Consequences:** Better snapshot/rollback behaviour for iterating on the AD/Wazuh setup without
+  rebuilding from scratch after a mistake. Trade-off: Workstation Pro is Windows/Linux-only
+  (irrelevant here, host is Windows) and is a heavier install than VirtualBox.
 
 ## 2026-09-03 — Scope of Phase 0: full scaffold + git up front
 - **Status:** Accepted

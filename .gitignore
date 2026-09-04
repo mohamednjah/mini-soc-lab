@@ -42,3 +42,8 @@ Thumbs.db
 # Editor
 .vscode/
 .idea/
+
+# Partial browser downloads (ISOs landing in this folder)
+*.crdownload
+*.part
+*.tmp
