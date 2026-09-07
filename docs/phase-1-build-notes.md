@@ -437,10 +437,11 @@ and both connection tests returning `True`.
 
 ## Outstanding
 
-- [ ] Disable the local DHCP service on VMnet8 — currently still enabled, which contradicts the
-      network plan. Not breaking anything while every host is static, but any future VM (or a reset
-      adapter) would receive VMware's DNS server and fail to join the domain.
-- [ ] Confirm the client's DNS is `10.10.10.10` and nothing else — no public resolver as a secondary.
+- [x] Disable the local DHCP service on VMnet8. Nothing was breaking while every host was static, but
+      leaving it enabled meant any future VM — a Kali host in Phase 4, a second client — would receive
+      an address *plus VMware's DNS server*, which is exactly the condition that breaks AD domain
+      joins. The cause would be a checkbox on the hypervisor rather than anything visible on the VM.
+- [x] Confirm the client's DNS is `10.10.10.10` and nothing else — no public resolver as a secondary.
 - [x] Promote the DC to AD DS, create the `soclab.local` domain, and add a DNS forwarder to
       `10.10.10.2` so the DC can still resolve public names.
 - [x] Build the Rocky Linux host at `10.10.10.20`.
