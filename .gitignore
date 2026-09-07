@@ -47,3 +47,11 @@ Thumbs.db
 *.crdownload
 *.part
 *.tmp
+
+# Lab credentials — kept locally, never committed
+passwords.txt
+passwords.*
+credentials.txt
+creds.txt
+secrets.txt
+*.secret
