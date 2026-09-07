@@ -281,6 +281,58 @@ telemetry realistic.
 (RFC 6762). Current Microsoft guidance is to use a subdomain of a domain actually owned
 (`ad.example.com`) to avoid resolution conflicts. Retained here as it is isolated and conflict-free.
 
+## Directory structure — OUs and users
+
+Organisational units created to give the domain a shape resembling a small organisation, rather than
+leaving every object in the default `Users` container:
+
+```powershell
+New-ADOrganizationalUnit -Name "IT" -Path "DC=soclab,DC=local"
+New-ADOrganizationalUnit -Name "Finance" -Path "DC=soclab,DC=local"
+New-ADOrganizationalUnit -Name "HR" -Path "DC=soclab,DC=local"
+```
+
+![Organisational unit creation](images/ad-ou-creation.png)
+
+OUs matter beyond tidiness: Group Policy links to OUs but **not** to the built-in `Users` and
+`Computers` containers, which are containers rather than organisational units. Anything left in the
+default location cannot be targeted by policy.
+
+Standard (non-administrative) users were created inside those OUs:
+
+```powershell
+$pw = Read-Host -AsSecureString "Password"
+New-ADUser -Name "Roberto Carlos" -SamAccountName "rcarlos" -UserPrincipalName "rcarlos@soclab.local" -Path "OU=HR,DC=soclab,DC=local" -AccountPassword $pw -Enabled $true
+```
+
+![User creation](images/ad-user-creation.png)
+
+Passing `-Path` places the account in a specific OU. Omitting it drops the object into the default
+`Users` container, where Group Policy cannot reach it.
+
+Ordinary user accounts are needed for three reasons. Wazuh has no baseline of normal activity if every
+logon in the environment is a Domain Admin logon. Phase 4 attack chains need a low-privilege starting
+point to escalate *from* — beginning as Domain Admin means there is nothing left to demonstrate. And
+routine use of a privileged account on a workstation caches Domain Admin credential material in LSASS
+on that machine, which is the precise condition those attacks exploit.
+
+Resulting directory contents:
+
+```powershell
+Get-ADUser -Filter * | Select-Object Name, SamAccountName, Enabled, DistinguishedName
+```
+
+![Domain user list](images/ad-user-list.png)
+
+Three built-in accounts appear alongside the created users. `Guest` and `krbtgt` are disabled by
+default. **`krbtgt`** is the Kerberos service account: its password hash signs every ticket issued in
+the domain, so an attacker holding that hash can forge a Golden Ticket — a valid TGT for any principal,
+including non-existent ones — until the hash is rotated. It is the single highest-value secret in the
+directory, and the reason post-compromise guidance calls for resetting it twice.
+
+Note also that the built-ins sit in `CN=Users` while the created accounts sit in `OU=IT`, `OU=HR` and
+`OU=Finance` — the container-versus-OU distinction visible directly in the distinguished names.
+
 ## Domain join — client pre-flight verification
 
 Two checks run **from the Windows client** before attempting the join. Both must pass; a failure here
@@ -368,6 +420,46 @@ afterwards.
 **Applies to:** every VM in this lab, Rocky Linux included — Easy Install causes comparable problems
 on Linux guests.
 
+### New-ADUser is not atomic — failed password leaves a half-created account
+
+**Symptom:** Creating a user with a password that failed the domain policy produced
+`ADPasswordComplexityException`. Retrying the identical command with a compliant password then failed
+with a *different* error — `ADIdentityAlreadyExistsException: The specified account already exists`.
+
+**Cause:** `New-ADUser` writes the user object to the directory **first**, then applies the password as
+a separate operation. When the password is rejected, the object has already been created. It is left
+disabled with no password set, and the retry collides with it.
+
+**Diagnosis:**
+
+```powershell
+Get-ADUser -Identity mnjah -Properties Enabled, PasswordLastSet |
+    Select-Object Name, SamAccountName, Enabled, PasswordLastSet
+```
+
+The account exists with `Enabled: False` and no `PasswordLastSet`, confirming partial creation rather
+than a stale duplicate.
+
+**Fix** — complete the existing object instead of deleting and recreating:
+
+```powershell
+Set-ADAccountPassword -Identity mnjah -NewPassword (Read-Host -AsSecureString "Password") -Reset
+Enable-ADAccount -Identity mnjah
+```
+
+**Takeaway:** a failed cmdlet does not imply nothing changed. Directory operations that touch multiple
+attributes can partially apply, so verify state before retrying rather than assuming a clean slate.
+
+The governing policy is worth inspecting directly:
+
+```powershell
+Get-ADDefaultDomainPasswordPolicy
+```
+
+Note `LockoutThreshold: 0` in the defaults — no account lockout is configured. Convenient for Phase 4
+brute-force simulation, since accounts will not lock during testing, but it is also a genuine
+misconfiguration and a CIS control that Phase 5 should address.
+
 ### Client SRV lookup timing out — no DNS server configured
 
 **Symptom:** Running the domain-locator lookup on the Windows client failed with a bare timeout:
@@ -448,7 +540,14 @@ and both connection tests returning `True`.
 - [x] Join the client to the domain and confirm the computer object registered in the directory.
 - [x] Rename the client from its Windows-generated name to `WIN10-CLIENT`, before agent enrolment.
 - [x] Install `open-vm-tools` on the Rocky host and enable `vmtoolsd`.
-- [ ] Snapshot the Rocky host as a clean baseline before Phase 2.
+- [x] Snapshot the Rocky host as a clean baseline (`01-clean-rocky-baseline`) before Phase 2. Taken
+      before the Wazuh install, which brings in OpenSearch, a JVM, generated certificates and several
+      systemd units — enough moving parts that a rollback point is worth more than the disk it costs.
+- [x] Create the AD user and OU structure — `IT`, `Finance` and `HR`, each with a standard user account.
+
+**Phase 1 complete.** The lab now has an isolated network with static addressing, a functioning
+`soclab.local` domain with a domain-joined workstation, a directory populated with OUs and ordinary
+user accounts, and a Rocky Linux host snapshotted and ready to become the Wazuh manager.
 
 ## Known limitations
 

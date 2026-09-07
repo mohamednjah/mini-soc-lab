@@ -10,9 +10,14 @@ a rule, a screenshot, a metric, or a playbook.
 
 ## Status
 
-🚧 In progress — Phase 0 (repo & workspace setup). See [docs/decisions.md](docs/decisions.md) for
-the build log and the [NEXT_PROJECT.md](../Resume-Creator/NEXT_PROJECT.md) plan for the full
-9-phase roadmap.
+**Phase 1 complete** — isolated lab network, `soclab.local` Active Directory domain with a
+domain-joined Windows client, and a Rocky Linux 10.2 host ready to run the Wazuh manager.
+
+Next: Phase 2, deploying Wazuh and enrolling agents.
+
+- [docs/phase-1-build-notes.md](docs/phase-1-build-notes.md) — what was built, what broke, how it was verified
+- [docs/network-plan.md](docs/network-plan.md) — addressing and network design
+- [docs/decisions.md](docs/decisions.md) — the reasoning behind each choice
 
 ## Architecture (planned)
 
