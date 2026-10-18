@@ -131,5 +131,6 @@ becomes slow or the indexer logs circuit-breaker errors once Sysmon starts feedi
 - [x] Reach the dashboard at `https://10.10.10.20` from the lab host and log in.
 - [ ] Identify the source of the 191 alerts already present with no agents enrolled.
 - [x] Check for SELinux denials (`ausearch -m avc -ts recent`) — none, with SELinux still enforcing.
-- [ ] Snapshot the host once the stack is confirmed healthy.
+- [x] Snapshot the host once the stack is confirmed healthy (`02-wazuh-installed`), giving a rollback
+      point with Wazuh installed and no agents enrolled.
 - [ ] Enrol agents on `DC01` and `WIN10-CLIENT`, then install Sysmon on both.
