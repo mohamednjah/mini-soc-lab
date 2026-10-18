@@ -122,6 +122,48 @@ about 3 GB here, but with two agents the indexed volume is small and an unnecess
 take memory from a host that is already short of it. It is the first thing to raise if the dashboard
 becomes slow or the indexer logs circuit-breaker errors once Sysmon starts feeding events in.
 
+## Agent enrolment
+
+Agents are enrolled one host at a time, domain controller first, so that a failure on the first points
+at the manager or the network rather than at anything specific to a workstation.
+
+### DC01
+
+The dashboard's *Deploy new agent* page generates the install command for a chosen platform, with the
+manager address and agent name filled in. Settings used: Windows, MSI, server address `10.10.10.20`,
+agent name `DC01`.
+
+![Deploy new agent form](images/wazuh-deploy-agent-form.png)
+
+By default the agent name is the hostname, so entering it explicitly is redundant here; it matters
+because the hostname is what appears in every alert, which is why the client was renamed before this
+phase. Run from an elevated PowerShell on `DC01`:
+
+```powershell
+Invoke-WebRequest -Uri https://packages.wazuh.com/4.x/windows/wazuh-agent-4.14.9-1.msi -OutFile $env:tmp\wazuh-agent; msiexec.exe /i $env:tmp\wazuh-agent /q WAZUH_MANAGER='10.10.10.20' WAZUH_AGENT_NAME='DC01'
+NET START Wazuh
+```
+
+`msiexec /q` installs silently, so an absence of output does not indicate failure. The download
+depends on the DC resolving public names, which is the DNS forwarder configured in Phase 1.
+
+Connectivity to the manager's event port was confirmed from the agent side:
+
+```powershell
+Test-NetConnection 10.10.10.20 -Port 1514
+```
+
+![Agent service start and port test](images/dc01-agent-service-start.png)
+
+`TcpTestSucceeded : True` proves the path and the firewall rule, not enrolment — registration uses
+port 1515 and happens inside the agent. The dashboard is the evidence for that:
+
+![DC01 enrolled and active](images/wazuh-endpoints-dc01.png)
+
+`DC01` appears as agent `001`, status **active**, in the `default` group, running agent 4.14.9.
+(Agent `000` is the manager itself.) The second `NET START` returning "already been started" is
+harmless; the first had succeeded.
+
 ## Verification still to do
 
 - [x] Confirm the services are running: `wazuh-manager`, `wazuh-indexer`, `wazuh-dashboard`.
@@ -133,4 +175,6 @@ becomes slow or the indexer logs circuit-breaker errors once Sysmon starts feedi
 - [x] Check for SELinux denials (`ausearch -m avc -ts recent`) — none, with SELinux still enforcing.
 - [x] Snapshot the host once the stack is confirmed healthy (`02-wazuh-installed`), giving a rollback
       point with Wazuh installed and no agents enrolled.
-- [ ] Enrol agents on `DC01` and `WIN10-CLIENT`, then install Sysmon on both.
+- [x] Enrol the agent on `DC01`.
+- [ ] Enrol the agent on `WIN10-CLIENT`.
+- [ ] Install Sysmon with a configuration on both Windows hosts and collect its events.
