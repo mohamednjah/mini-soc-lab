@@ -45,11 +45,40 @@ recording:
   1024 MB default regardless of the VM's memory. Inferred from reading the script, not yet observed —
   see the verification list below.
 
+## Firewall
+
+`firewalld` blocks everything outside its default services, so the Wazuh ports were opened explicitly:
+
+```bash
+sudo firewall-cmd --permanent --add-port={443,1514,1515,55000}/tcp && sudo firewall-cmd --reload
+```
+
+![Firewall ports opened](images/wazuh-firewall-ports.png)
+
+| Port | Purpose |
+|---|---|
+| 443/tcp | Dashboard web interface |
+| 1514/tcp | Agent event traffic |
+| 1515/tcp | Agent enrolment |
+| 55000/tcp | Wazuh API |
+
+firewalld keeps *runtime* and *permanent* configuration separately: `--permanent` saves a rule without
+activating it, and `--reload` applies the saved set. The two `success` lines are one for each half.
+The brace expansion is done by bash, not firewalld, and produces four `--add-port` arguments.
+
+All four ports are inbound to the manager; the Windows agents connect outward and need no rules.
+Port 9200 (the indexer) is deliberately left closed, since the dashboard reaches it locally.
+
+Rules were applied to the whole `public` zone, so any host that can reach the manager can reach these
+ports. Acceptable on a flat lab network; a production deployment would restrict sources to the agent
+subnet with a rich rule.
+
 ## Verification still to do
 
 - [ ] Confirm the services are running: `wazuh-manager`, `wazuh-indexer`, `wazuh-dashboard`.
 - [ ] Check the indexer heap actually applied: `grep -E "^-Xm[sx]" /etc/wazuh-indexer/jvm.options`.
-- [ ] Open the firewall: ports 443, 1514, 1515 and 55000 over TCP.
+- [x] Open the firewall: ports 443, 1514, 1515 and 55000 over TCP.
+- [ ] Confirm the rules are live: `sudo firewall-cmd --list-ports`.
 - [ ] Reach the dashboard at `https://10.10.10.20` from the lab host and log in.
 - [ ] Check for SELinux denials (`ausearch -m avc -ts recent`) — it remains enforcing.
 - [ ] Snapshot the host once the stack is confirmed healthy.
