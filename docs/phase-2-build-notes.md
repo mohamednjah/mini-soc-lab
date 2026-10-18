@@ -164,6 +164,31 @@ port 1515 and happens inside the agent. The dashboard is the evidence for that:
 (Agent `000` is the manager itself.) The second `NET START` returning "already been started" is
 harmless; the first had succeeded.
 
+### WIN10-CLIENT
+
+Same procedure with the agent name `WIN10-CLIENT`, run from an elevated PowerShell on the client:
+
+![Client agent install and service start](images/win10-client-agent-install.png)
+
+The session was a standard-user logon (`mnjah`) elevated per process through UAC, rather than an
+interactive Domain Admin logon. A Domain Admin session on a workstation caches privileged credential
+material in LSASS on that machine, which is the condition most credential-theft chains depend on;
+elevating a single process avoids leaving it there. It also leaves explicit-credential and
+special-privilege logon events (4648, 4672) on the client, a legitimate baseline for elevation that
+Phase 4 detections will need to distinguish from the malicious equivalent.
+
+Both agents are now enrolled and active:
+
+![Both agents active](images/wazuh-endpoints-both-agents.png)
+
+| ID | Name | Address | OS |
+|---|---|---|---|
+| 000 | wazuh-manager | 10.10.10.20 | Rocky Linux 10.2 (built-in local agent) |
+| 001 | DC01 | 10.10.10.10 | Windows Server 2022 Standard Evaluation |
+| 002 | WIN10-CLIENT | 10.10.10.30 | Windows 10 Pro 10.0.19045 |
+
+The client reports as Windows 10 **Pro**, which is the edition required to join a domain.
+
 ## Verification still to do
 
 - [x] Confirm the services are running: `wazuh-manager`, `wazuh-indexer`, `wazuh-dashboard`.
@@ -176,5 +201,5 @@ harmless; the first had succeeded.
 - [x] Snapshot the host once the stack is confirmed healthy (`02-wazuh-installed`), giving a rollback
       point with Wazuh installed and no agents enrolled.
 - [x] Enrol the agent on `DC01`.
-- [ ] Enrol the agent on `WIN10-CLIENT`.
+- [x] Enrol the agent on `WIN10-CLIENT`.
 - [ ] Install Sysmon with a configuration on both Windows hosts and collect its events.
