@@ -189,6 +189,64 @@ Both agents are now enrolled and active:
 
 The client reports as Windows 10 **Pro**, which is the edition required to join a domain.
 
+## Sysmon
+
+The Wazuh agent reads the standard Windows event logs, but those say little about process activity: no
+command lines unless a second audit policy is enabled, no network connections, no file hashes, and no
+record of one process opening another. Sysmon (Sysinternals System Monitor) fills that gap and is the
+source for most of the process, network and credential-access detections planned for Phase 4.
+
+Installed on `WIN10-CLIENT` first, so a problem could be isolated before touching the domain controller.
+
+**Sources.** Sysmon from Microsoft's Sysinternals download, and the SwiftOnSecurity community
+configuration (`sysmonconfig-export.xml`), a widely used, heavily commented starting point. That
+repository was last updated in July 2024.
+
+The signature was checked before running anything, and the install then ran with the configuration:
+
+```powershell
+Get-AuthenticodeSignature .\Sysmon64.exe | Format-List Status, SignerCertificate
+.\Sysmon64.exe -accepteula -i .\sysmonconfig-export.xml
+Get-Service Sysmon64
+```
+
+![Sysmon install on the client](images/sysmon-install-client.png)
+
+The signature is valid and issued to Microsoft Corporation; Sysmon 15.22 installed, the configuration
+validated, and the `Sysmon64` service is running.
+
+**Configuration age.** The installer reports Sysmon schema 4.91 but loaded a configuration written for
+schema 4.50. Sysmon accepts it, but anything added to the schema since is outside what this config
+knows to log or filter. The practical effect is a blind spot for newer events, which is the argument for
+evaluating a maintained configuration such as `sysmon-modular` later.
+
+### Telling the agent to collect it
+
+A default 4.14.9 Windows agent does not read the Sysmon channel: searching `ossec.conf` for "Sysmon"
+returned nothing, so Sysmon would have logged events that Wazuh never received. The channel was added as
+an event-channel `<localfile>` entry, with the original configuration backed up first because a malformed
+edit stops the agent from starting:
+
+```xml
+<localfile>
+  <location>Microsoft-Windows-Sysmon/Operational</location>
+  <log_format>eventchannel</log_format>
+</localfile>
+```
+
+![Sysmon channel in ossec.conf](images/wazuh-ossec-sysmon-channel.png)
+
+After `Restart-Service Wazuh`, filtering Threat Hunting for `WIN10-CLIENT` on
+`data.win.system.providerName: Microsoft-Windows-Sysmon` returns **31 events** in the last 24 hours.
+
+![Sysmon events from the client](images/wazuh-sysmon-events-client.png)
+
+The events are decoded into Wazuh's Sysmon rule groups (`sysmon`, `sysmon_eid1_detections`,
+`sysmon_eid11_detections`), meaning process-creation and file-creation events are both arriving and
+matching rules. The top alert titles include a PowerShell-use rule and a discovery-activity rule; the
+list is truncated in the screenshot, so the exact rules have not been recorded. None are level 12 or
+above, as expected for benign activity.
+
 ## Verification still to do
 
 - [x] Confirm the services are running: `wazuh-manager`, `wazuh-indexer`, `wazuh-dashboard`.
@@ -202,4 +260,6 @@ The client reports as Windows 10 **Pro**, which is the edition required to join 
       point with Wazuh installed and no agents enrolled.
 - [x] Enrol the agent on `DC01`.
 - [x] Enrol the agent on `WIN10-CLIENT`.
-- [ ] Install Sysmon with a configuration on both Windows hosts and collect its events.
+- [x] Install Sysmon with a configuration on `WIN10-CLIENT` and collect its events.
+- [ ] Repeat the Sysmon install and channel configuration on `DC01`.
+- [ ] Record the exact rules behind the top Sysmon alerts, which the dashboard truncated.
