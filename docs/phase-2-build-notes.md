@@ -100,14 +100,36 @@ source has not been confirmed. It matters because it is the first baseline of "n
 detections will need to be distinguished from it, and the Phase 5 configuration-assessment findings
 will start from whatever the manager already reports about its own host.
 
+### Post-install checks
+
+```bash
+sudo grep -E "^-Xm[sx]" /etc/wazuh-indexer/jvm.options
+sudo firewall-cmd --list-ports
+sudo ausearch -m avc -ts recent
+```
+
+![Post-install checks](images/wazuh-post-install-checks.png)
+
+- **Indexer heap is 1024 MB** (`-Xms1024m`, `-Xmx1024m`). This confirms the reading of the installer:
+  the heap is derived from a variable that is never defined, so it falls back to a fixed 1 GB whatever
+  the VM's memory. The file is root-readable only, hence `sudo` on a plain `grep`.
+- **All four ports are live** at runtime, not merely saved to the permanent configuration.
+- **No SELinux denials.** The system remained in enforcing mode throughout, and the install produced
+  no AVC records.
+
+The heap is left at 1 GB for now. Wazuh's tuning guidance is roughly half of system RAM, which would be
+about 3 GB here, but with two agents the indexed volume is small and an unnecessary increase would
+take memory from a host that is already short of it. It is the first thing to raise if the dashboard
+becomes slow or the indexer logs circuit-breaker errors once Sysmon starts feeding events in.
+
 ## Verification still to do
 
 - [x] Confirm the services are running: `wazuh-manager`, `wazuh-indexer`, `wazuh-dashboard`.
-- [ ] Check the indexer heap actually applied: `grep -E "^-Xm[sx]" /etc/wazuh-indexer/jvm.options`.
+- [x] Check the indexer heap actually applied: it is 1024 MB, as predicted from the installer.
 - [x] Open the firewall: ports 443, 1514, 1515 and 55000 over TCP.
-- [ ] Confirm the rules are live: `sudo firewall-cmd --list-ports`.
+- [x] Confirm the rules are live: `sudo firewall-cmd --list-ports`.
 - [x] Reach the dashboard at `https://10.10.10.20` from the lab host and log in.
 - [ ] Identify the source of the 191 alerts already present with no agents enrolled.
-- [ ] Check for SELinux denials (`ausearch -m avc -ts recent`) — it remains enforcing.
+- [x] Check for SELinux denials (`ausearch -m avc -ts recent`) — none, with SELinux still enforcing.
 - [ ] Snapshot the host once the stack is confirmed healthy.
 - [ ] Enrol agents on `DC01` and `WIN10-CLIENT`, then install Sysmon on both.
