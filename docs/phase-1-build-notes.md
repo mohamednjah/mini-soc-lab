@@ -124,8 +124,15 @@ from a snapshot so the fallout can be documented and rolled back.
 
 ### Version note
 
-Planning documents were written against Rocky Linux 9; the build uses **10.2**. Verified compatible —
-Wazuh's package list covers *"RockyLinux 10 and later"* (currently `wazuh-agent-4.14.7`).
+Planning documents were written against Rocky Linux 9; the build uses **10.2**.
+
+Wazuh's *agent* package list covers "RockyLinux 10 and later", but the central components (server,
+indexer, dashboard) are a separate matter. The documentation's recommended-OS list names RHEL 7–10,
+CentOS Stream 10, Amazon Linux and Ubuntu, and does not mention Rocky. The 4.14 installation assistant
+accepts `rocky` as a distribution but treats only **9.4** as recommended, so on 10.2 it prints a
+"does not match the list of recommended systems" warning and proceeds. Rocky is a RHEL rebuild and
+RHEL 10 is on the documented list, so this is expected to work, but it is untested territory rather
+than a supported configuration.
 
 ### Verified configuration
 
