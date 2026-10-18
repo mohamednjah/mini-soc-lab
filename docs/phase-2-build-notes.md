@@ -73,13 +73,41 @@ Rules were applied to the whole `public` zone, so any host that can reach the ma
 ports. Acceptable on a flat lab network; a production deployment would restrict sources to the agent
 subnet with a rich rule.
 
+## Verification
+
+All three services report `active`:
+
+```bash
+sudo systemctl is-active wazuh-manager wazuh-indexer wazuh-dashboard
+```
+
+![Wazuh services active](images/wazuh-services-active.png)
+
+The dashboard is reachable at `https://10.10.10.20` from the lab host and the login succeeds. The
+browser flags the connection as not secure because the installer generates a self-signed certificate;
+that is expected on an isolated lab network and would be replaced with a CA-issued certificate in a
+real deployment.
+
+![Wazuh dashboard overview](images/wazuh-dashboard-overview.png)
+
+This confirms the stack runs on Rocky 10.2 despite the installer's recommended-OS warning, so the
+untested-configuration caveat above can be treated as resolved for this version.
+
+The overview shows **no agents registered** — as expected, none have been enrolled — yet already
+reports 71 medium and 120 low severity alerts for the last 24 hours. With no agents, these are most
+likely the manager monitoring itself, which Wazuh does through a built-in local agent (ID `000`). The
+source has not been confirmed. It matters because it is the first baseline of "normal" noise: Phase 4
+detections will need to be distinguished from it, and the Phase 5 configuration-assessment findings
+will start from whatever the manager already reports about its own host.
+
 ## Verification still to do
 
-- [ ] Confirm the services are running: `wazuh-manager`, `wazuh-indexer`, `wazuh-dashboard`.
+- [x] Confirm the services are running: `wazuh-manager`, `wazuh-indexer`, `wazuh-dashboard`.
 - [ ] Check the indexer heap actually applied: `grep -E "^-Xm[sx]" /etc/wazuh-indexer/jvm.options`.
 - [x] Open the firewall: ports 443, 1514, 1515 and 55000 over TCP.
 - [ ] Confirm the rules are live: `sudo firewall-cmd --list-ports`.
-- [ ] Reach the dashboard at `https://10.10.10.20` from the lab host and log in.
+- [x] Reach the dashboard at `https://10.10.10.20` from the lab host and log in.
+- [ ] Identify the source of the 191 alerts already present with no agents enrolled.
 - [ ] Check for SELinux denials (`ausearch -m avc -ts recent`) — it remains enforcing.
 - [ ] Snapshot the host once the stack is confirmed healthy.
 - [ ] Enrol agents on `DC01` and `WIN10-CLIENT`, then install Sysmon on both.
