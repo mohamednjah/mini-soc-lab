@@ -247,6 +247,49 @@ matching rules. The top alert titles include a PowerShell-use rule and a discove
 list is truncated in the screenshot, so the exact rules have not been recorded. None are level 12 or
 above, as expected for benign activity.
 
+### End-to-end check with a marker event
+
+A count of Sysmon events in the dashboard shows data is arriving but not that a specific event made the
+whole trip. To follow one event through each stage, a command carrying a unique string was run on the
+client, so it would appear in Sysmon's recorded command line:
+
+```powershell
+cmd.exe /c "echo LABTEST7731 & whoami"
+```
+
+The first attempt used `&&`, which Windows PowerShell 5.1 does not support, so it failed at parse time
+and ran nothing; the argument has to be quoted so `cmd.exe` receives the `&` itself. A run that
+generates no event cannot be mistaken for a pipeline fault.
+
+The event was then located at two points:
+
+```powershell
+Get-WinEvent -LogName "Microsoft-Windows-Sysmon/Operational" -MaxEvents 20 |
+    Where-Object { $_.Message -match "LABTEST7731" } | Format-List TimeCreated, Id
+```
+
+```bash
+sudo grep -c "LABTEST7731" /var/ossec/logs/alerts/alerts.json
+```
+
+![Marker test](images/sysmon-marker-test.png)
+
+Sysmon recorded two Event ID 1 (process creation) entries containing the marker, and the manager's
+`alerts.json` holds two matching alerts, so nothing was lost between the endpoint and the manager. The
+second event is probably `whoami.exe`, whose parent command line also contains the marker; that has not
+been inspected. Checking `alerts.json` rather than the dashboard separates the two places a failure
+could occur: it is written before indexing, so an event present there but absent from the dashboard
+points at the indexer rather than the agent or rules.
+
+A caveat for interpreting absence: Wazuh stores only events that match a rule at alert level 3 or
+above. A delivered event that matches no rule never reaches the dashboard, so a missing event does not
+by itself prove it was not delivered. Raw archiving (`logall_json`) settles that question when needed,
+at the cost of logging every event.
+
+The `whoami` output in the same session returned `soclab\administrator`: the shell used for the Sysmon
+install is elevated with the domain account while the logon session remains the standard user, which
+confirms the per-process elevation described above.
+
 ## Verification still to do
 
 - [x] Confirm the services are running: `wazuh-manager`, `wazuh-indexer`, `wazuh-dashboard`.
@@ -261,5 +304,7 @@ above, as expected for benign activity.
 - [x] Enrol the agent on `DC01`.
 - [x] Enrol the agent on `WIN10-CLIENT`.
 - [x] Install Sysmon with a configuration on `WIN10-CLIENT` and collect its events.
+- [x] Confirm a marker event travels from Sysmon to the manager's `alerts.json`.
+- [ ] Confirm the same marker is searchable in the dashboard (`data.win.eventdata.commandLine`).
 - [ ] Repeat the Sysmon install and channel configuration on `DC01`.
 - [ ] Record the exact rules behind the top Sysmon alerts, which the dashboard truncated.
