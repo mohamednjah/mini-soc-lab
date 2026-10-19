@@ -359,4 +359,8 @@ only ever executed there. The `whoami` output again reads `soclab\administrator`
 - [x] Verify the signature of the `Sysmon64.exe` copy used on `DC01`.
 - [ ] Note the dashboard's responsiveness now that the domain controller is feeding events, against the
       1 GB indexer heap.
+- [x] Capture the SCA baseline for both Windows hosts before hardening — see
+      [../hardening/baseline.md](../hardening/baseline.md): `DC01` 27%, `WIN10-CLIENT` 28%.
+- [ ] Investigate two level-15 alerts mapped to Ingress Tool Transfer (T1105) around 15:00 on 19 Oct:
+      identify the agent, rule and command line, and whether they are the Sysmon downloads.
 - [ ] Record the exact rules behind the top Sysmon alerts, which the dashboard truncated.
