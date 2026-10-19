@@ -286,6 +286,19 @@ above. A delivered event that matches no rule never reaches the dashboard, so a 
 by itself prove it was not delivered. Raw archiving (`logall_json`) settles that question when needed,
 at the cost of logging every event.
 
+The final hop, the dashboard, was checked with a search on the command-line field:
+
+```
+data.win.eventdata.commandLine: *LABTEST7731*
+```
+
+![Marker found in the dashboard](images/wazuh-marker-dashboard.png)
+
+It returns **one** match, so the event is indexed and searchable end to end. That is one fewer than the two
+alerts in `alerts.json`, which fits the earlier reading: this query covers only the `commandLine` field,
+and the `whoami.exe` event would carry the marker in `parentCommandLine`, a separate field. Neither event
+has been opened to confirm it.
+
 The `whoami` output in the same session returned `soclab\administrator`: the shell used for the Sysmon
 install is elevated with the domain account while the logon session remains the standard user, which
 confirms the per-process elevation described above.
@@ -305,6 +318,6 @@ confirms the per-process elevation described above.
 - [x] Enrol the agent on `WIN10-CLIENT`.
 - [x] Install Sysmon with a configuration on `WIN10-CLIENT` and collect its events.
 - [x] Confirm a marker event travels from Sysmon to the manager's `alerts.json`.
-- [ ] Confirm the same marker is searchable in the dashboard (`data.win.eventdata.commandLine`).
+- [x] Confirm the same marker is searchable in the dashboard (`data.win.eventdata.commandLine`).
 - [ ] Repeat the Sysmon install and channel configuration on `DC01`.
 - [ ] Record the exact rules behind the top Sysmon alerts, which the dashboard truncated.
