@@ -315,6 +315,13 @@ Sysmon 15.22 installed with the configuration validated (again schema 4.50 again
 the Kerberos, LDAP and account activity that most of the Phase 4 attack techniques target, and a
 process-level view of what runs on it.
 
+The signature of this copy was checked after the install:
+
+![Sysmon signature on DC01](images/sysmon-signature-dc01.png)
+
+It is valid and issued to Microsoft, and the certificate thumbprint matches the client's copy, so both
+hosts run the same signed binary.
+
 The same marker method was used with a different string, so events from the two hosts cannot be confused:
 
 ```powershell
@@ -349,7 +356,7 @@ only ever executed there. The `whoami` output again reads `soclab\administrator`
 - [x] Confirm a marker event travels from Sysmon to the manager's `alerts.json`.
 - [x] Confirm the same marker is searchable in the dashboard (`data.win.eventdata.commandLine`).
 - [x] Repeat the Sysmon install and channel configuration on `DC01`, with a marker test.
-- [ ] Verify the signature of the `Sysmon64.exe` copy used on `DC01` (not captured for that copy).
+- [x] Verify the signature of the `Sysmon64.exe` copy used on `DC01`.
 - [ ] Note the dashboard's responsiveness now that the domain controller is feeding events, against the
       1 GB indexer heap.
 - [ ] Record the exact rules behind the top Sysmon alerts, which the dashboard truncated.
