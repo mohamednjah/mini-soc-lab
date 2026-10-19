@@ -368,6 +368,56 @@ channel, so no change was needed, unlike Sysmon. Failed-logon events are the bas
 detection planned for Phase 4, where the domain controller is the more interesting source, since failed
 domain authentications are recorded there.
 
+## Linux auditd on the manager
+
+The Linux side of "logs flowing" was checked on the manager itself, which monitors its own host through
+the built-in local agent.
+
+`auditd` was running, and the manager's `ossec.conf` already contains a `<localfile>` with
+`log_format audit` for `/var/log/audit/audit.log`, so unlike Sysmon no collection change was needed.
+
+**`auditctl` was missing.** On Rocky 10 the audit tooling is split: `auditd` and `ausearch` ship in
+`audit`, but `auditctl`, the tool that loads watch rules, comes from a separate `audit-rules` package
+(`audit-rules-4.0.3-5.el10`). It was not part of the minimal install. Installing it was a change to the
+host: its install script loaded the package's default audit rules and printed audit status several times,
+which looked like noise but was rules being activated. This should be accounted for in the Phase 5 baseline
+for this host.
+
+**Wazuh alerts on audit keys, not on every record.** `ossec.conf` references a list of audit keys
+(`/var/ossec/etc/lists/audit-keys`): `audit-wazuh-w` (write), `-r` (read), `-a` (attribute), `-x` (execute)
+and `-c` (command). A watch with some other key is logged by auditd and read by the agent but produces no
+alert. This was demonstrated in two steps.
+
+First, a watch with an arbitrary key was logged correctly by auditd, but is not in the list:
+
+```bash
+sudo auditctl -w /tmp/labtest_audit -p w -k labtest_audit
+touch /tmp/labtest_audit
+sudo ausearch -k labtest_audit
+```
+
+![auditd watch and the key list](images/auditd-watch-and-keys.png)
+
+`ausearch` returns the full record chain: `PATH` naming the file, `SYSCALL` identifying
+`/usr/bin/touch` run by the logged-in user, and the key. The watch was then removed and replaced with one
+using a key from the list, on a new filename:
+
+```bash
+sudo auditctl -w /tmp/labtest_wazuh_w -p w -k audit-wazuh-w
+touch /tmp/labtest_wazuh_w
+sudo grep -c "labtest_wazuh_w" /var/ossec/logs/alerts/alerts.json
+```
+
+![Audit event reaching Wazuh](images/auditd-wazuh-alert-count.png)
+
+The manager's `alerts.json` holds two entries, so the event travelled from auditd through Wazuh's audit
+decoder and produced alerts. The dashboard search for this marker was not captured. Why two entries rather
+than one has not been inspected. The watches are runtime-only and disappear on reboot, so nothing persistent
+was added beyond the `audit-rules` package.
+
+The practical consequence for later phases: Linux audit detections only exist where a rule is tagged with
+one of these keys, so any auditd-based detection in Phase 4 or 5 must use them.
+
 ## First high-severity alerts: both benign
 
 Filtering the dashboard to `rule.level: 15 and above` returned two alerts in the first day, both mapped
@@ -445,8 +495,8 @@ two hours (14:13 UTC is 16:13 local). That offset matters when matching events a
 - [x] Note the dashboard's responsiveness now that the domain controller is feeding events: it remains
       responsive with both hosts reporting, so the default 1 GB indexer heap is adequate at this volume.
 - [x] Confirm Windows Security events reach Wazuh, using a failed logon marker (`labtest9001`).
-- [ ] Check Linux `auditd` on the manager: that it runs, that Wazuh is told to read its log, and that an
-      event gets through.
+- [x] Check Linux `auditd` on the manager: it runs, Wazuh reads its log, and a keyed event reaches
+      `alerts.json`. Required installing `audit-rules` for `auditctl`.
 - [x] Snapshot both Windows VMs once the agent and Sysmon were configured and verified, giving a
       rollback point before any attack simulation.
 - [x] Capture the SCA baseline for both Windows hosts before hardening — see
