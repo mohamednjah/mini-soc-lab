@@ -21,6 +21,62 @@ Format:
 
 ---
 
+## 2026-10-19 — Sysmon configuration: SwiftOnSecurity despite its age
+- **Status:** Accepted
+- **Context:** Sysmon logs nothing useful without a configuration, and the configuration decides what is
+  recorded and what is silently dropped. Windows event logs alone give thin process visibility.
+- **Decision:** Use the SwiftOnSecurity `sysmonconfig-export.xml` on both Windows hosts.
+- **Alternatives considered:**
+  - **`sysmon-modular`** — actively maintained (updated within the week) and organised by MITRE ATT&CK
+    technique, a good fit for Phase 4. Not chosen first because I could not confirm a prebuilt-config
+    URL, and a heavily commented config is easier to learn from.
+  - **Native process-creation auditing (event 4688 with command lines)** — free and needs no extra
+    software, but gives no network connections, hashes or process-access events. A partial answer.
+- **Consequences:** Well documented and widely used, but last updated July 2024. It loads as schema 4.50
+  against Sysmon's 4.91, so newer event types are outside what it knows to log or filter — a blind spot
+  to name in any detection coverage claim. Revisit with `sysmon-modular` during Phase 4.
+
+## 2026-10-19 — Elevate per process rather than log on as Domain Admin
+- **Status:** Accepted
+- **Context:** Installing agents and Sysmon on the workstation needs admin rights, and the only admin
+  identity available was the domain Administrator.
+- **Decision:** Stay logged on as the standard user `mnjah` and elevate individual PowerShell processes
+  with the domain Administrator's credentials through UAC.
+- **Alternatives considered:** signing in interactively as `SOCLAB\Administrator` — simpler, but it
+  caches Domain Admin credential material in LSASS on the workstation, the condition most credential-theft
+  chains depend on.
+- **Consequences:** Privileged credentials are used for one process and not left in the session. Elevation
+  also leaves explicit-credential and special-privilege logon events (4648, 4672) as a legitimate
+  baseline for Phase 4 to distinguish from the malicious equivalent. Costs a credential prompt per task.
+
+## 2026-10-18 — Leave the Wazuh indexer heap at the installer default
+- **Status:** Accepted
+- **Context:** Planning assumed the OpenSearch heap would need capping on a 6 GB VM. Reading the installer
+  showed it derives the heap from a variable that is never defined and falls back to 1 GB, which a
+  post-install check confirmed (`-Xms1024m`, `-Xmx1024m`). The risk is an undersized heap, not an
+  oversized one.
+- **Decision:** Keep 1 GB.
+- **Alternatives considered:** raise it to roughly half of RAM (about 3 GB), per Wazuh's tuning guidance.
+  Rejected for now: two agents produce little indexed data, and the memory is scarce on a 16 GB host.
+- **Consequences:** The dashboard stays responsive with both Windows hosts reporting. This is one
+  observation at lab scale; it is the first setting to raise if Phase 4 volume produces slowness or
+  indexer circuit-breaker errors.
+
+## 2026-10-18 — Wazuh all-in-one on Rocky 10.2, outside the installer's recommended list
+- **Status:** Accepted
+- **Context:** The 4.14 installation assistant accepts Rocky but treats only 9.4 as recommended, and the
+  VM has 6 GB of RAM against a documented recommendation of 8 GiB. The documentation's recommended-OS
+  list includes RHEL 10.
+- **Decision:** Install all-in-one (indexer, server and dashboard on one host) on the Rocky 10.2 build,
+  accepting the warning.
+- **Alternatives considered:**
+  - **Wazuh's pre-built virtual appliance** — faster, but opaque, and it would undercut the reason for
+    building on a RHEL-family system, which is to do the administration by hand.
+  - **Ubuntu** — on the supported list, but it duplicates existing Debian-family experience.
+- **Consequences:** An untested rather than unsupported configuration. It installed cleanly, all three
+  services run, SELinux stayed enforcing with no denials, and the stack handles two agents. 6 GB sits below
+  the recommendation, so the host should be resized if Phase 4 load demands it.
+
 ## 2026-09-03 — Lab network: VMware NAT on 10.10.10.0/24, static IPs
 - **Status:** Accepted
 - **Context:** The lab needs internet access (dnf, Windows Update, downloading Wazuh/Sysmon/Atomic

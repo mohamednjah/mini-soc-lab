@@ -9,12 +9,17 @@ a rule, a screenshot, a metric, or a playbook.
 
 ## Status
 
-**Phase 1 complete** — isolated lab network, `soclab.local` Active Directory domain with a
-domain-joined Windows client, and a Rocky Linux 10.2 host ready to run the Wazuh manager.
+**Phase 1 complete; Phase 2 largely complete.** An isolated lab network with a `soclab.local` Active
+Directory domain and a domain-joined Windows client (Phase 1), and a Wazuh 4.14.9 manager on Rocky Linux
+10.2 receiving events from agents on both Windows hosts, with Sysmon feeding process-level telemetry
+(Phase 2). Pre-hardening CIS compliance baselines are recorded.
 
-Next: Phase 2, deploying Wazuh and enrolling agents.
+Still open in Phase 2: verifying the Windows Security and Linux (auditd) log sources, and a dashboard of
+its own. Next: Phase 3, extending the lab with a cloud node.
 
 - [docs/phase-1-build-notes.md](docs/phase-1-build-notes.md) — what was built, what broke, how it was verified
+- [docs/phase-2-build-notes.md](docs/phase-2-build-notes.md) — Wazuh deployment, agents, Sysmon, end-to-end checks
+- [hardening/baseline.md](hardening/baseline.md) — CIS baseline scores before any hardening
 - [docs/network-plan.md](docs/network-plan.md) — addressing and network design
 - [docs/decisions.md](docs/decisions.md) — the reasoning behind each choice
 
