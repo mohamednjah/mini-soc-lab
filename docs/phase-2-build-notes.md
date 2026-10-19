@@ -378,8 +378,19 @@ Two practical consequences for Phase 4:
   executables needs a known-benign section listing these two patterns, and a tuning note on narrowing
   the rule by parent process or path.
 
-The exact rule ID and description were not captured; the screenshot shows the event fields but not the
-rule, so they remain to be recorded from the alert's detail view.
+Both alerts are rule **92213**, *"Executable file dropped in folder commonly used by malware"*, level 15,
+MITRE T1105. Its definition in the 4.14.9 ruleset (`0830-sysmon_id_11.xml`) is simple: it fires on any
+Sysmon Event ID 11 whose `targetFilename` matches `...\Users\<user>\AppData\Local\Temp\<anything>` with
+an extension of `exe`, `com`, `dll`, `vbs`, `js`, `bat`, `cmd`, `pif`, `wsh`, `ps1`, `msi` or `vbe`.
+
+The rule has **no condition on the creating process**. The path and the extension alone are enough, so
+any browser, installer or PowerShell session that writes one of those file types to Temp reaches level 15,
+which explains why two ordinary events scored at the top of the scale. It is a reasonable catch-all for
+payload drops and a poor discriminator.
+
+A tuning option, not applied: a local child rule that matches 92213 and lowers the level when the image
+is a known-benign updater, leaving the rule at level 15 for everything else. Writing it, and checking it
+still fires on a real drop, belongs with the Phase 4 detection card.
 
 The dashboard's time column is local time, while Sysmon's own `utcTime` field is UTC, so they differ by
 two hours (14:13 UTC is 16:13 local). That offset matters when matching events across the two.
@@ -402,13 +413,13 @@ two hours (14:13 UTC is 16:13 local). That offset matters when matching events a
 - [x] Confirm the same marker is searchable in the dashboard (`data.win.eventdata.commandLine`).
 - [x] Repeat the Sysmon install and channel configuration on `DC01`, with a marker test.
 - [x] Verify the signature of the `Sysmon64.exe` copy used on `DC01`.
-- [ ] Note the dashboard's responsiveness now that the domain controller is feeding events, against the
-      1 GB indexer heap.
+- [x] Note the dashboard's responsiveness now that the domain controller is feeding events: it remains
+      responsive with both hosts reporting, so the default 1 GB indexer heap is adequate at this volume.
 - [x] Snapshot both Windows VMs once the agent and Sysmon were configured and verified, giving a
       rollback point before any attack simulation.
 - [x] Capture the SCA baseline for both Windows hosts before hardening — see
       [../hardening/baseline.md](../hardening/baseline.md): `DC01` 27%, `WIN10-CLIENT` 28%.
 - [x] Investigate the two level-15 alerts mapped to Ingress Tool Transfer (T1105): benign, from the
       client — a PowerShell script-policy test file and an Edge component unpack.
-- [ ] Record the rule ID and description behind those two alerts from the alert detail view.
+- [x] Record the rule behind those two alerts: 92213, checked against the 4.14.9 ruleset.
 - [ ] Record the exact rules behind the top Sysmon alerts, which the dashboard truncated.
