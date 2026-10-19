@@ -339,6 +339,51 @@ field finds one match, matching the client's pattern:
 The dashboard query is not scoped to an agent; the match is attributed to `DC01` because the marker was
 only ever executed there. The `whoami` output again reads `soclab\administrator`.
 
+## First high-severity alerts: both benign
+
+Filtering the dashboard to `rule.level: 15 and above` returned two alerts in the first day, both mapped
+to MITRE *Ingress Tool Transfer* (T1105). Level 15 is the top of Wazuh's scale, so they were opened
+rather than assumed to be noise.
+
+![Level 15 alerts](images/wazuh-level15-alerts.png)
+
+Both are Sysmon **Event ID 11 (file creation)** from `WIN10-CLIENT` (agent `002`), user `SOCLAB\mnjah`:
+
+| Time (local) | Process | File created |
+|---|---|---|
+| 15:59:12 | `powershell.exe` | `...\AppData\Local\Temp\__PSScriptPolicyTest_*.ps1` |
+| 16:13:29 | `msedge.exe` | `...\AppData\Local\Temp\msedge_chrome_Unpacker_...\widevinecdm.dll` |
+
+- The first is a file PowerShell writes itself, briefly, to test whether scripts can run under the
+  current execution policy. It appears whenever an elevated or policy-checked PowerShell session starts.
+- The second is Microsoft Edge's component updater unpacking a browser component, the Widevine DRM
+  module, into a temporary folder.
+
+Neither is malicious. Both are an executable or script created by a normal process in a user-writable
+temporary directory, which is exactly the pattern the rule exists to catch, because attackers drop
+payloads in the same places. Severity reflects how suspicious the *pattern* is, not whether the event is
+hostile, and nothing here distinguishes the benign case from the malicious one except the process and
+file name.
+
+The first guess about these alerts, that they came from the Sysmon downloads on the domain controller,
+was wrong: they are on the client and unrelated to that activity. The cause was identified by reading the
+event fields rather than inferred from timing.
+
+Two practical consequences for Phase 4:
+
+- **Severity alone is a poor alert threshold here.** Ordinary browser and PowerShell behaviour reaches
+  level 15, while most Sysmon events sit at level 3. A detection that fires on level alone would page on
+  routine activity.
+- **These are the first false-positive and tuning candidates.** Any detection card for dropped
+  executables needs a known-benign section listing these two patterns, and a tuning note on narrowing
+  the rule by parent process or path.
+
+The exact rule ID and description were not captured; the screenshot shows the event fields but not the
+rule, so they remain to be recorded from the alert's detail view.
+
+The dashboard's time column is local time, while Sysmon's own `utcTime` field is UTC, so they differ by
+two hours (14:13 UTC is 16:13 local). That offset matters when matching events across the two.
+
 ## Verification still to do
 
 - [x] Confirm the services are running: `wazuh-manager`, `wazuh-indexer`, `wazuh-dashboard`.
@@ -363,6 +408,7 @@ only ever executed there. The `whoami` output again reads `soclab\administrator`
       rollback point before any attack simulation.
 - [x] Capture the SCA baseline for both Windows hosts before hardening — see
       [../hardening/baseline.md](../hardening/baseline.md): `DC01` 27%, `WIN10-CLIENT` 28%.
-- [ ] Investigate two level-15 alerts mapped to Ingress Tool Transfer (T1105) around 15:00 on 19 Oct:
-      identify the agent, rule and command line, and whether they are the Sysmon downloads.
+- [x] Investigate the two level-15 alerts mapped to Ingress Tool Transfer (T1105): benign, from the
+      client — a PowerShell script-policy test file and an Edge component unpack.
+- [ ] Record the rule ID and description behind those two alerts from the alert detail view.
 - [ ] Record the exact rules behind the top Sysmon alerts, which the dashboard truncated.
