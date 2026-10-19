@@ -411,9 +411,26 @@ sudo grep -c "labtest_wazuh_w" /var/ossec/logs/alerts/alerts.json
 ![Audit event reaching Wazuh](images/auditd-wazuh-alert-count.png)
 
 The manager's `alerts.json` holds two entries, so the event travelled from auditd through Wazuh's audit
-decoder and produced alerts. The dashboard search for this marker was not captured. Why two entries rather
-than one has not been inspected. The watches are runtime-only and disappear on reboot, so nothing persistent
+decoder and produced alerts. The watches are runtime-only and disappear on reboot, so nothing persistent
 was added beyond the `audit-rules` package.
+
+The event is also searchable in the dashboard, on the audit decoder's own field names:
+
+```
+data.audit.file.name: *labtest_wazuh_w*
+```
+
+![Audit event in the dashboard](images/wazuh-auditd-dashboard.png)
+
+It returns one hit from agent `000` (the manager), carrying `data.audit.key: audit-wazuh-w`, the file name
+`/tmp/labtest_wazuh_w`, `data.audit.exe: /usr/bin/touch`, the command `touch`, record type `SYSCALL`, and
+the audit user ID of the account that ran it. That is the useful part of auditd telemetry: who ran what,
+against which file, tied to the original login session.
+
+The dashboard shows one hit against two entries in `alerts.json`. The second entry most likely lacks the
+`file.name` field this search matches, for instance a different audit record type from the same event, but
+it has not been opened to confirm. Because the search keys on a specific field, a count for one field does
+not account for every alert, which is the same lesson as the Sysmon marker's `commandLine` search.
 
 The practical consequence for later phases: Linux audit detections only exist where a rule is tagged with
 one of these keys, so any auditd-based detection in Phase 4 or 5 must use them.
