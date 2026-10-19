@@ -303,6 +303,35 @@ The `whoami` output in the same session returned `soclab\administrator`: the she
 install is elevated with the domain account while the logon session remains the standard user, which
 confirms the per-process elevation described above.
 
+### Sysmon on DC01
+
+Repeated on the domain controller once the client was proven, with the same binary, the same
+configuration and the same channel entry in the agent's `ossec.conf`.
+
+![Sysmon install on DC01](images/sysmon-install-dc01.png)
+
+Sysmon 15.22 installed with the configuration validated (again schema 4.50 against Sysmon's 4.91) and
+`Sysmon64` is running. A domain controller is the more valuable of the two sources, since it records
+the Kerberos, LDAP and account activity that most of the Phase 4 attack techniques target, and a
+process-level view of what runs on it.
+
+The same marker method was used with a different string, so events from the two hosts cannot be confused:
+
+```powershell
+cmd.exe /c "echo LABTEST9942 & whoami"
+```
+
+![Marker test on DC01](images/sysmon-marker-test-dc01.png)
+
+The manager's `alerts.json` holds two entries for `LABTEST9942`, and the earlier client marker still
+reports two, so the second host did not disturb the first. The dashboard search on the command-line
+field finds one match, matching the client's pattern:
+
+![Marker found in the dashboard](images/wazuh-marker-dashboard-dc01.png)
+
+The dashboard query is not scoped to an agent; the match is attributed to `DC01` because the marker was
+only ever executed there. The `whoami` output again reads `soclab\administrator`.
+
 ## Verification still to do
 
 - [x] Confirm the services are running: `wazuh-manager`, `wazuh-indexer`, `wazuh-dashboard`.
@@ -319,5 +348,8 @@ confirms the per-process elevation described above.
 - [x] Install Sysmon with a configuration on `WIN10-CLIENT` and collect its events.
 - [x] Confirm a marker event travels from Sysmon to the manager's `alerts.json`.
 - [x] Confirm the same marker is searchable in the dashboard (`data.win.eventdata.commandLine`).
-- [ ] Repeat the Sysmon install and channel configuration on `DC01`.
+- [x] Repeat the Sysmon install and channel configuration on `DC01`, with a marker test.
+- [ ] Verify the signature of the `Sysmon64.exe` copy used on `DC01` (not captured for that copy).
+- [ ] Note the dashboard's responsiveness now that the domain controller is feeding events, against the
+      1 GB indexer heap.
 - [ ] Record the exact rules behind the top Sysmon alerts, which the dashboard truncated.
