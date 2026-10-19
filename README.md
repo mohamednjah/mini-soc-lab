@@ -1,9 +1,8 @@
 # Mini-SOC — Detection-Engineering Lab
 
-A home lab built to close recurring gaps found across ~22 real Italian cybersecurity/data job
-descriptions (see the companion [Resume-Creator](https://github.com/) repo's tailored applications):
-SIEM, cloud, hardening, EDR/XDR, Active Directory, automation, and incident response — plus a
-data/ML layer that makes the same project relevant to data-analyst roles.
+A home lab built to close recurring gaps found across real Italian cybersecurity/infrastructure job
+descriptions:
+SIEM, cloud, hardening, EDR/XDR, Active Directory, automation, and incident response.
 
 **The documentation is the deliverable.** Every claim on my CV traces to something in this repo:
 a rule, a screenshot, a metric, or a playbook.
