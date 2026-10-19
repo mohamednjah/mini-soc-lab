@@ -339,6 +339,35 @@ field finds one match, matching the client's pattern:
 The dashboard query is not scoped to an agent; the match is attributed to `DC01` because the marker was
 only ever executed there. The `whoami` output again reads `soclab\administrator`.
 
+## Windows Security log
+
+Sysmon is a separate channel, so the standard Security log was checked on its own. A failed logon for a
+non-existent local account, with a unique name so it could be traced, was generated on the client:
+
+```powershell
+runas /user:labtest9001 cmd.exe
+```
+
+It fails with error 1326 (*the user name or password is incorrect*), which writes a Security logon-failure
+event (4625). The manager's `alerts.json` then holds one entry for the marker:
+
+```bash
+sudo grep -c "labtest9001" /var/ossec/logs/alerts/alerts.json
+```
+
+![Failed logon and manager count](images/security-log-failed-logon-test.png)
+
+In the dashboard, searching `data.win.eventdata.targetUserName: labtest9001` for `WIN10-CLIENT` returns one
+event, which Wazuh counts under **Authentication failure**:
+
+![Logon failure in the dashboard](images/wazuh-security-logon-failure.png)
+
+That the dashboard classifies it as an authentication failure, rather than merely storing it, shows the
+Security events are being decoded and matched to rules. The default agent configuration collects this
+channel, so no change was needed, unlike Sysmon. Failed-logon events are the basis of the brute-force
+detection planned for Phase 4, where the domain controller is the more interesting source, since failed
+domain authentications are recorded there.
+
 ## First high-severity alerts: both benign
 
 Filtering the dashboard to `rule.level: 15 and above` returned two alerts in the first day, both mapped
@@ -415,6 +444,9 @@ two hours (14:13 UTC is 16:13 local). That offset matters when matching events a
 - [x] Verify the signature of the `Sysmon64.exe` copy used on `DC01`.
 - [x] Note the dashboard's responsiveness now that the domain controller is feeding events: it remains
       responsive with both hosts reporting, so the default 1 GB indexer heap is adequate at this volume.
+- [x] Confirm Windows Security events reach Wazuh, using a failed logon marker (`labtest9001`).
+- [ ] Check Linux `auditd` on the manager: that it runs, that Wazuh is told to read its log, and that an
+      event gets through.
 - [x] Snapshot both Windows VMs once the agent and Sysmon were configured and verified, giving a
       rollback point before any attack simulation.
 - [x] Capture the SCA baseline for both Windows hosts before hardening — see
