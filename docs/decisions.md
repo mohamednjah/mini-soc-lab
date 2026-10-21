@@ -21,6 +21,24 @@ Format:
 
 ---
 
+## 2026-10-21 — Cloud-to-manager connectivity: Tailscale
+- **Status:** Accepted
+- **Context:** The Phase 3 cloud VM must send agent traffic to a manager on `10.10.10.20`, which sits behind
+  VMware NAT and a home router. The cloud has a public address; the manager has none.
+- **Decision:** Tailscale, installed on the Rocky manager and the cloud VM, with a restrictive access policy
+  and multi-factor authentication on the account.
+- **Alternatives considered:**
+  - **Port forwarding 1514/1515** — needs forwards on both the router and VMware NAT, a dynamic-DNS name,
+    and a public address the ISP may not provide (carrier-grade NAT). It exposes the manager to the
+    internet, and Wazuh's enrolment port needs no password by default. Rejected on security grounds.
+  - **Plain WireGuard** — smaller attack surface, no third party, and easy to automate in Phase 6, but
+    manual key handling, no identity or audit layer, and an open UDP port on the cloud VM.
+- **Consequences:** Nothing opens inbound at home and the setup works behind any ISP. The cost is a
+  dependency on a third-party coordination service, and a new weak point: the Tailscale account. Tailscale's
+  default policy allows every device to reach every other, so the policy must be tightened so the cloud VM
+  can reach only TCP 1514 and 1515 on the manager. In production, a site-to-site IPsec VPN or zero-trust
+  access service would be expected instead; this is a home-lab compromise, and it should be described as one.
+
 ## 2026-10-19 — Sysmon configuration: SwiftOnSecurity despite its age
 - **Status:** Accepted
 - **Context:** Sysmon logs nothing useful without a configuration, and the configuration decides what is

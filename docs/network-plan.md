@@ -1,7 +1,7 @@
 # Network plan
 
 The lab runs on a single isolated IPv4 subnet behind VMware's NAT. Everything on-premises uses
-RFC 1918 private addressing; the only public IP in the whole project is the Azure VM added in
+RFC 1918 private addressing; the only public IP in the whole project is the cloud VM added in
 Phase 3.
 
 ## Topology
@@ -87,13 +87,35 @@ NAT means the VMs can reach the internet. That is fine for Phase 4, because Atom
 *simulated* techniques, not live malware. If real malware samples are ever detonated in this lab, switch
 the VMs to a **LAN segment** (fully isolated, no host or internet connectivity) first.
 
-## Phase 3 — connecting the Azure node
+## Phase 3 — connecting the cloud node
 
-The Azure VM must reach the manager, which sits on a private IP behind a home router. Two options:
+The cloud VM must reach the manager, which sits on a private IP behind VMware NAT and a home router —
+two layers of address translation. The cloud provider is not yet chosen; the connectivity design below does
+not depend on it.
 
-- **Port-forward 1514/1515 on the home router** — exposes the home network, needs dynamic DNS, and
-  contradicts the Phase 3 guardrail about not exposing services. Rejected.
-- **Mesh VPN (Tailscale or WireGuard)** — both ends get an overlay address, the agent points at the
-  manager's VPN IP, no inbound exposure, no router configuration. **Preferred.**
+**Decision: Tailscale.** Both the manager and the cloud VM make outbound connections to Tailscale's
+coordination service and form a WireGuard tunnel between them. Each gets a `100.x.y.z` address, and the
+cloud agent enrols against the manager's tunnel address. Nothing is opened inbound at home: no router
+rule, no VMware port forward.
 
-Decision to be finalised and logged at Phase 3.
+Rejected alternatives:
+
+- **Port forwarding 1514/1515** — would need two forwards (router, then VMware NAT), a dynamic-DNS name,
+  and only works if the ISP provides a public address rather than carrier-grade NAT. It exposes the
+  manager to the internet, and by default Wazuh's enrolment port does not require a password.
+- **Plain WireGuard** — a sound option with a smaller attack surface and no third-party dependency, but
+  more manual configuration and an open UDP port on the cloud VM.
+
+Tailscale is installed **on the Rocky manager itself**, not on the laptop, so the tunnel terminates where the
+service is. This adds a network path into the manager, which is a deliberate change:
+
+- **Account security.** Whoever controls the Tailscale login can enrol a device, so multi-factor
+  authentication is enabled at the identity provider.
+- **Least-privilege policy.** Tailscale's default lets every device reach every other on every port. The
+  policy is restricted so the cloud VM, the internet-facing and less-trusted machine, can reach the manager
+  on TCP 1514 and 1515 only, and nothing else (no SSH, no dashboard).
+- **Firewall.** `firewalld` rules for 1514/1515 are scoped to the tunnel interface rather than opened to
+  every source.
+
+In production, an IPsec site-to-site VPN or a zero-trust access service would be the usual pattern; a
+home lab cannot terminate a site-to-site tunnel, which is why a mesh VPN is used here.
