@@ -51,8 +51,9 @@ while keeping the lab in its own broadcast domain that the home LAN cannot initi
 
 **`10.10.10.0/24`, not `192.168.x.x`.** Home routers almost always use `192.168.0.0/24` or
 `192.168.1.0/24`; overlapping with the host's own LAN causes routing confusion that is hard to diagnose.
-`10.10.10.0/24` is memorable and collision-free. It also deliberately avoids Azure's default VNet range
-(`10.0.0.0/16`), so the Phase 3 hybrid link never has to deal with overlapping subnets.
+`10.10.10.0/24` is memorable and collision-free. It also deliberately avoids the cloud default ranges (AWS's default VPC uses `172.31.0.0/16`; Azure's
+default VNet uses `10.0.0.0/16`), so a hybrid link never has to deal with overlapping subnets. Tailscale's
+own addresses come from `100.64.0.0/10`, which overlaps with none of these.
 
 **DHCP disabled, static everywhere.** Two reasons: servers should not move, and VMware's DHCP hands out
 VMware's DNS server — which breaks Active Directory domain joins (see below).

@@ -21,6 +21,24 @@ Format:
 
 ---
 
+## 2026-10-21 — Cloud provider: AWS over Azure
+- **Status:** Accepted. Supersedes the earlier working assumption of Azure in the Phase 3 plan.
+- **Context:** The plan assumed Azure, chosen for its fit with a Windows and Active Directory lab, the
+  Microsoft-heavy job market, and the SC-200 certificate. Before committing, the current free-tier terms
+  were read from each provider's own pages rather than relied on from memory.
+- **Decision:** AWS, on its Free plan.
+- **Alternatives considered:**
+  - **Azure** — $200 of credit for the first 30 days only, then a required upgrade to pay-as-you-go to keep
+    anything running, after which usage beyond the free quantities is billed. Microsoft may also remove
+    compute resources from an account inactive for 30 days, which suits a lab used in bursts poorly.
+- **Consequences:** AWS's Free plan credits ($100 on signup, up to $100 more for completing activities)
+  last up to six months, and the account closes itself when they run out or the period ends, so overspending
+  is not possible without deliberately upgrading to a Paid plan. That makes the cost guardrail a property of
+  the account instead of an alert. The costs of the choice: a hard six-month lifetime for the cloud node, and
+  a different certification path (AWS Cloud Practitioner rather than SC-200 or AZ-900). The job descriptions
+  name AWS and Azure equally, so the market gave no tiebreak, and the earlier claim that the Italian market
+  favours Microsoft was an assumption the data did not support.
+
 ## 2026-10-21 — Cloud-to-manager connectivity: Tailscale
 - **Status:** Accepted
 - **Context:** The Phase 3 cloud VM must send agent traffic to a manager on `10.10.10.20`, which sits behind
