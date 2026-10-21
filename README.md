@@ -9,13 +9,12 @@ a rule, a screenshot, a metric, or a playbook.
 
 ## Status
 
-**Phase 1 complete; Phase 2 complete apart from an optional dashboard.** An isolated lab network with a
-`soclab.local` Active Directory domain and a domain-joined Windows client (Phase 1), and a Wazuh 4.14.9
-manager on Rocky Linux 10.2 receiving events from agents on both Windows hosts (Phase 2). Three log sources
-are verified end to end with traceable test events: Sysmon process telemetry, the Windows Security log, and
-Linux auditd on the manager. Pre-hardening CIS compliance baselines are recorded.
+**Phases 1 and 2 complete.** An isolated lab network with a `soclab.local` Active Directory domain and a
+domain-joined Windows client (Phase 1), and a Wazuh 4.14.9 manager on Rocky Linux 10.2 receiving events
+from agents on both Windows hosts (Phase 2). Three log sources are verified end to end with traceable test
+events: Sysmon process telemetry, the Windows Security log, and Linux auditd on the manager. Pre-hardening
+CIS compliance baselines are recorded.
 
-Still open in Phase 2: a dashboard of its own, which the built-in Wazuh views currently stand in for.
 Next: Phase 3, extending the lab with a cloud node.
 
 - [docs/phase-1-build-notes.md](docs/phase-1-build-notes.md) — what was built, what broke, how it was verified
