@@ -37,8 +37,9 @@ the lab network, AWS's default VPC range, or Azure's.
 
 The admin console shows the manager connected. Account email, device ID, node key, tailnet domain and
 external endpoints are redacted. The page reports key expiry **six months from now**: untagged devices carry
-the default expiry, so without a tag the manager would silently drop off the network after that period.
-Tagging it, as described below, is expected to remove that.
+the default expiry, so without action the manager would silently drop off the network after that period.
+Tagging it was expected to remove that; see the result under *Access policy* below, which did not bear
+that expectation out.
 
 ## Access policy
 
@@ -69,17 +70,29 @@ sudo tailscale up --accept-dns=false --advertise-tags=tag:manager
 ```
 
 `tailscale up` requires every non-default flag to be restated, which is why `--accept-dns=false` appears
-again. The command returned without error. Tailscale normally rejects an advertised tag the policy has not
-defined, so that is indirect evidence the policy saved, but it is inferred, and the console is the proof.
+again. The command returned without error.
+
+The console confirms it:
+
+![Manager tagged in the console](images/tailscale-manager-tagged.png)
+
+The machine now carries `tag:manager`, and "Managed by" has changed from a user account to the tag. A tag
+can only be applied if the policy defines it, so the policy saved; and the console only saves a policy
+whose tests pass, so the tests passed.
+
+**Key expiry did not change.** The page still reports expiry six months from now. The assumption that
+tagging disables expiry was wrong for this device, which was tagged after it had already joined; whether
+that holds for devices that join with a tag already attached has not been checked. The manager therefore
+still needs expiry disabled explicitly, or it will drop off the network when the key lapses.
 
 ## Still to do
 
 - [x] Confirm `/etc/resolv.conf` still lists the two original nameservers after `tailscale up`: it lists
       the domain controller first and the NAT gateway second, so `--accept-dns=false` left DNS alone.
-- [ ] Write the access policy (tags `tag:manager` and `tag:cloud-agent`; the cloud VM may reach the manager
-      on TCP 1514 and 1515 only) and confirm its built-in tests pass.
-- [ ] Re-run `tailscale up` with `--advertise-tags=tag:manager`, then confirm in the console that the tag
-      is applied and key expiry is off.
+- [x] Write the access policy (tags `tag:manager` and `tag:cloud-agent`; the cloud VM may reach the manager
+      on TCP 1514 and 1515 only); it saved, so its built-in tests passed.
+- [x] Re-run `tailscale up` with `--advertise-tags=tag:manager`; the tag is applied in the console.
+- [ ] Disable key expiry for the manager in the console, then confirm the expiry line changes.
 - [ ] Put `tailscale0` in its own `firewalld` zone allowing only TCP 1514 and 1515.
 - [ ] Confirm multi-factor authentication is on for the Tailscale identity provider and the AWS root user.
 - [ ] AWS guardrails (budget, no public SSH or RDP, testing policy) before any resource is created.
