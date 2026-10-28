@@ -139,6 +139,32 @@ That is established from the rule ordering and nftables semantics, not yet from 
 2. **`firewalld` `tailnet` zone**: only TCP 1514 and 1515 on the tunnel interface.
 3. **Tailscale's anti-spoof rule**, dropping tailnet-sourced packets from other interfaces.
 
+## Background: firewalld zones and the `tailscale0` interface
+
+**Zones.** A `firewalld` zone is a named rule set describing how far to trust a network connection:
+which services and ports are open, and what happens to everything else. Each interface (or source
+address) is assigned to one zone, and incoming traffic is judged by the rules of the zone it arrived
+through. A packet is matched to a zone by source address first, then by incoming interface, then falls
+back to the default zone (`public`). Zone rules govern **incoming** connections only; connections the host
+starts are allowed, and their replies are let back in by connection tracking. Configuration exists twice,
+live and saved: `--permanent` writes the saved copy and `--reload` makes it live.
+
+**The tunnel interface.** `tailscale0` is not a network card. It is a TUN interface, a software-only
+interface created by `tailscaled`, with no hardware or virtual card behind it. A packet addressed to a
+`100.x.y.z` peer is routed into it, `tailscaled` reads it, encrypts it with WireGuard and wraps it in an
+ordinary UDP packet, and that packet leaves through the real interface, `ens160`, across the NAT and the
+internet to the peer, where the process reverses.
+
+```
+ program ──▶ tailscale0 ──▶ tailscaled (encrypt) ──▶ ens160 ──▶ NAT ──▶ internet ──▶ peer
+ 100.x.y.z    software        WireGuard in UDP       real path
+```
+
+The manager therefore has two interfaces with two addresses and two zones: `ens160` (`10.10.10.20`, zone
+`public`) carries the lab and the tunnel's encrypted packets, and `tailscale0` (`100.73.251.78`, zone
+`tailnet`) carries the decrypted Wazuh traffic from the cloud VM. That is why the two zones govern
+different things even though everything ultimately travels over one network card.
+
 ## Still to do
 
 - [x] Confirm `/etc/resolv.conf` still lists the two original nameservers after `tailscale up`: it lists
