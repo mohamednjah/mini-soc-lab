@@ -88,8 +88,13 @@ still needs expiry disabled explicitly, or it will drop off the network when the
 ## Host firewall on the tunnel interface
 
 The tunnel interface was placed in its own `firewalld` zone, so tunnel traffic is limited to the two Wazuh
-ports by the host as well as by the Tailscale policy. Without it, `tailscale0` would land in the same zone
-as the lab interface and inherit everything open there, including the dashboard and the API:
+ports by the host as well as by the Tailscale policy. The expectation was that, without a zone of its own,
+`tailscale0` would fall into the default `public` zone and inherit everything open there, including the
+dashboard and the API. **That was not checked beforehand**: the zone state was not captured before the
+change, and the only earlier baseline predates the Tailscale install, so it could not show the interface at
+all. The commands were additive and reversible and did not touch the lab interface, so the risk was low,
+but the starting state should have been recorded first (`firewall-cmd --get-active-zones` and
+`--list-all-zones`):
 
 ```bash
 sudo firewall-cmd --permanent --new-zone=tailnet
