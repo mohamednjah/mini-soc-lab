@@ -85,6 +85,60 @@ tagging disables expiry was wrong for this device, which was tagged after it had
 that holds for devices that join with a tag already attached has not been checked. The manager therefore
 still needs expiry disabled explicitly, or it will drop off the network when the key lapses.
 
+## Host firewall on the tunnel interface
+
+The tunnel interface was placed in its own `firewalld` zone, so tunnel traffic is limited to the two Wazuh
+ports by the host as well as by the Tailscale policy. Without it, `tailscale0` would land in the same zone
+as the lab interface and inherit everything open there, including the dashboard and the API:
+
+```bash
+sudo firewall-cmd --permanent --new-zone=tailnet
+sudo firewall-cmd --permanent --zone=tailnet --add-port=1514/tcp
+sudo firewall-cmd --permanent --zone=tailnet --add-port=1515/tcp
+sudo firewall-cmd --permanent --zone=tailnet --add-interface=tailscale0
+sudo firewall-cmd --reload
+sudo firewall-cmd --get-active-zones
+```
+
+![tailnet zone created and active](images/firewalld-tailnet-zone.png)
+
+`ens160` stays in `public` and `tailscale0` is in `tailnet`. The lab is unaffected: the Windows agents
+arrive on `ens160`, and Tailscale's own encrypted packets also arrive there rather than on `tailscale0`.
+
+### Does Tailscale's own firewall bypass the zone?
+
+On Linux, Tailscale installs its own rules. Inspecting them showed the concern was real in part: the
+`ts-input` chain, which the `INPUT` hook jumps to, contains
+
+```
+iifname "tailscale0" counter accept
+ip saddr 100.64.0.0/10 iifname != "tailscale0" counter drop
+```
+
+The first accepts anything arriving on the tunnel interface. The second drops packets claiming a tailnet
+source address on any other interface, an anti-spoofing rule that would be lost if Tailscale's firewall
+handling were switched off (`--netfilter-mode=off`), which is a reason not to.
+
+The first reading was that the accept rule would let tunnel traffic skip `firewalld`. That was too strong.
+Tailscale's rules live in the `ip filter` table managed by `iptables-nft`, while `firewalld` keeps its
+rules in a separate nftables table. In nftables an accept in one table does not stop other tables'
+chains on the same hook from evaluating the packet; each registered base chain runs in priority order and
+a drop or reject from any of them is final. What matters is the ordering, and it was checked:
+
+```bash
+sudo nft list table inet firewalld | grep -n -E "hook input"
+# type filter hook input priority filter + 10; policy accept;
+```
+
+`firewalld`'s input chain runs at `priority filter + 10`, after Tailscale's chain at `filter`, so tunnel
+traffic still passes through the `tailnet` zone's two-port limit.
+
+That is established from the rule ordering and nftables semantics, not yet from a live test. The layers are:
+
+1. **Tailscale policy**, enforced inside `tailscaled`: only the cloud agent, only TCP 1514 and 1515.
+2. **`firewalld` `tailnet` zone**: only TCP 1514 and 1515 on the tunnel interface.
+3. **Tailscale's anti-spoof rule**, dropping tailnet-sourced packets from other interfaces.
+
 ## Still to do
 
 - [x] Confirm `/etc/resolv.conf` still lists the two original nameservers after `tailscale up`: it lists
@@ -92,8 +146,11 @@ still needs expiry disabled explicitly, or it will drop off the network when the
 - [x] Write the access policy (tags `tag:manager` and `tag:cloud-agent`; the cloud VM may reach the manager
       on TCP 1514 and 1515 only); it saved, so its built-in tests passed.
 - [x] Re-run `tailscale up` with `--advertise-tags=tag:manager`; the tag is applied in the console.
-- [ ] Disable key expiry for the manager in the console, then confirm the expiry line changes.
-- [ ] Put `tailscale0` in its own `firewalld` zone allowing only TCP 1514 and 1515.
+- [x] Disable key expiry for the manager in the console (done; the resulting page was not captured).
+- [x] Put `tailscale0` in its own `firewalld` zone allowing only TCP 1514 and 1515, and check that
+      `firewalld` still evaluates tunnel traffic after Tailscale's rules.
+- [ ] Prove the `firewalld` layer on its own once the cloud VM exists: temporarily widen the Tailscale
+      policy to allow all ports from it, confirm 22 and 443 are still refused, then restore the policy.
 - [ ] Confirm multi-factor authentication is on for the Tailscale identity provider and the AWS root user.
 - [ ] AWS guardrails (budget, no public SSH or RDP, testing policy) before any resource is created.
 - [ ] Launch the cloud VM, join it to Tailscale as `tag:cloud-agent`, and enrol its Wazuh agent against the
