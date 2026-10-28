@@ -40,6 +40,38 @@ external endpoints are redacted. The page reports key expiry **six months from n
 the default expiry, so without a tag the manager would silently drop off the network after that period.
 Tagging it, as described below, is expected to remove that.
 
+## Access policy
+
+Tailscale's default policy lets every device reach every other on every port. The cloud VM is the
+internet-facing, less-trusted machine and the manager is the one that matters most, so the default is
+replaced with a single permission. The file is versioned as [../cloud/tailscale-policy.json](../cloud/tailscale-policy.json);
+it holds tags and ports only, nothing secret.
+
+![Policy in the admin console editor](images/tailscale-policy-editor.png)
+
+- **Tags** (`tag:manager`, `tag:cloud-agent`) label machines by role rather than by owner, so the rule
+  survives rebuilding the cloud VM: a replacement with the same tag is covered without editing the policy.
+  Tagged machines also authenticate with a pre-made key rather than a person's login, which suits servers.
+- **One rule.** Machines tagged `cloud-agent` may open TCP connections to machines tagged `manager` on
+  1514 (agent events) and 1515 (enrolment), and nothing else. Policy is default-deny, so SSH, the dashboard
+  and the API are unreachable from the tunnel. Rules are stateful, so replies need no reverse rule.
+- **Tests.** The policy carries assertions that the two Wazuh ports are allowed and that 22, 443 and 55000
+  are denied. The console evaluates them on save and refuses a policy that contradicts them, and they
+  re-run on every later edit, which guards against a typo opening something by accident.
+
+This cannot lock out administration: the policy is managed through the account in the browser, and the
+manager is reached over SSH on the lab network rather than the tunnel.
+
+The manager was then tagged:
+
+```bash
+sudo tailscale up --accept-dns=false --advertise-tags=tag:manager
+```
+
+`tailscale up` requires every non-default flag to be restated, which is why `--accept-dns=false` appears
+again. The command returned without error. Tailscale normally rejects an advertised tag the policy has not
+defined, so that is indirect evidence the policy saved, but it is inferred, and the console is the proof.
+
 ## Still to do
 
 - [x] Confirm `/etc/resolv.conf` still lists the two original nameservers after `tailscale up`: it lists

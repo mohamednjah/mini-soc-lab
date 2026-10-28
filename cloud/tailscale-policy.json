@@ -1,0 +1,23 @@
+{
+  "tagOwners": {
+    "tag:manager":     ["autogroup:admin"],
+    "tag:cloud-agent": ["autogroup:admin"]
+  },
+
+  "acls": [
+    {
+      "action": "accept",
+      "proto":  "tcp",
+      "src":    ["tag:cloud-agent"],
+      "dst":    ["tag:manager:1514,1515"]
+    }
+  ],
+
+  "tests": [
+    {
+      "src":    "tag:cloud-agent",
+      "accept": ["tag:manager:1514", "tag:manager:1515"],
+      "deny":   ["tag:manager:22", "tag:manager:443", "tag:manager:55000"]
+    }
+  ]
+}
