@@ -182,8 +182,18 @@ different things even though everything ultimately travels over one network card
       `firewalld` still evaluates tunnel traffic after Tailscale's rules.
 - [ ] Prove the `firewalld` layer on its own once the cloud VM exists: temporarily widen the Tailscale
       policy to allow all ports from it, confirm 22 and 443 are still refused, then restore the policy.
-- [ ] Confirm multi-factor authentication is on for the Tailscale identity provider and the AWS root user.
-- [ ] AWS guardrails (budget, no public SSH or RDP, testing policy) before any resource is created.
+- [x] Multi-factor authentication is on for the Tailscale identity provider and the AWS root user
+      (not captured).
+- [ ] AWS guardrails, in order, before any resource is created:
+  - [ ] Confirm the root user has no access keys.
+  - [ ] Create a budget that counts usage before credits, with alerts to an address that is checked.
+  - [ ] Create an IAM user with MFA for day-to-day work, and stop using root.
+  - [ ] Choose a region and use it for everything.
+  - [ ] Security group with no inbound rules; nothing exposed on 22 or 3389 to the internet.
+  - [x] Read AWS's penetration-testing policy: testing your own EC2 instances needs no prior approval;
+        command-and-control testing needs approval, denial-of-service is prohibited, and AWS's own
+        infrastructure is out of scope. Offensive testing stays on the local hosts regardless, so the
+        policy only touches the misconfiguration demo, which changes this account's own settings.
 - [ ] Launch the cloud VM, join it to Tailscale as `tag:cloud-agent`, and enrol its Wazuh agent against the
       manager's tunnel address.
 - [ ] Ship CloudTrail into Wazuh, then run the deliberate misconfiguration demo.
