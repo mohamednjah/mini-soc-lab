@@ -42,7 +42,8 @@ Tagging it, as described below, is expected to remove that.
 
 ## Still to do
 
-- [ ] Confirm `/etc/resolv.conf` still lists the two original nameservers after `tailscale up`.
+- [x] Confirm `/etc/resolv.conf` still lists the two original nameservers after `tailscale up`: it lists
+      the domain controller first and the NAT gateway second, so `--accept-dns=false` left DNS alone.
 - [ ] Write the access policy (tags `tag:manager` and `tag:cloud-agent`; the cloud VM may reach the manager
       on TCP 1514 and 1515 only) and confirm its built-in tests pass.
 - [ ] Re-run `tailscale up` with `--advertise-tags=tag:manager`, then confirm in the console that the tag
