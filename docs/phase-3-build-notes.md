@@ -1,8 +1,10 @@
 # Phase 3 — Cloud node build notes
 
-Extends the lab with a cloud VM that reports to the on-premises Wazuh manager. The provider is **AWS**
-(Free plan) and the link is a **Tailscale** mesh VPN; both choices and the rejected alternatives are in
-[decisions.md](decisions.md), and the connectivity design is in [network-plan.md](network-plan.md).
+Extends the lab with a cloud VM that reports to the on-premises Wazuh manager. The provider is **Google
+Cloud (GCP)** on its Free Trial and the link is a **Tailscale** mesh VPN; both choices and the rejected
+alternatives are in [decisions.md](decisions.md), and the connectivity design is in
+[network-plan.md](network-plan.md). AWS was the original choice and was dropped when the account turned out
+not to be eligible for its free plan; the decisions log has the full account.
 
 ## Tailscale on the manager
 
@@ -31,7 +33,8 @@ overwriting the resolver arrangement verified in Phase 1 (the domain controller 
 fallback), and this host does not need Tailscale's name resolution.
 
 The manager received the tunnel address `100.73.251.78`. Tailscale's `100.64.0.0/10` range overlaps none of
-the lab network, AWS's default VPC range, or Azure's.
+the lab network or the AWS and Azure default ranges. GCP's default network ranges have not yet been checked
+against the lab and the tunnel range; that check belongs with creating the project's network.
 
 ![Manager in the Tailscale admin console](images/tailscale-machine-manager.png)
 
@@ -182,23 +185,25 @@ different things even though everything ultimately travels over one network card
       `firewalld` still evaluates tunnel traffic after Tailscale's rules.
 - [ ] Prove the `firewalld` layer on its own once the cloud VM exists: temporarily widen the Tailscale
       policy to allow all ports from it, confirm 22 and 443 are still refused, then restore the policy.
-- [x] Multi-factor authentication is on for the Tailscale identity provider and the AWS root user
-      (not captured).
-- [ ] AWS guardrails, in order, before any resource is created:
-  - [ ] Confirm the root user has no access keys.
-  - [ ] Create a budget that counts usage before credits, with alerts to an address that is checked.
-  - [ ] Create an IAM user with MFA for day-to-day work, and stop using root.
-  - [ ] Choose a region and use it for everything.
-  - [ ] Avoid anything that auto-upgrades a free plan: AWS Organizations, Control Tower, the Partner
-        Network, Professional Services contracts, Enterprise Agreements, Skill Builder Team, HIPAA or SEC
-        designation. Use a plain IAM user rather than IAM Identity Center until that is checked.
-  - [ ] Billing and Cost Management home shows "Unable to load" for cost figures. Find the cause (Cost
-        Explorer not enabled, permissions, or the browser) and locate the credit balance under *Credits*.
-  - [ ] Security group with no inbound rules; nothing exposed on 22 or 3389 to the internet.
-  - [x] Read AWS's penetration-testing policy: testing your own EC2 instances needs no prior approval;
-        command-and-control testing needs approval, denial-of-service is prohibited, and AWS's own
-        infrastructure is out of scope. Offensive testing stays on the local hosts regardless, so the
-        policy only touches the misconfiguration demo, which changes this account's own settings.
+- [x] Multi-factor authentication is on for the Tailscale identity provider (not captured). The AWS
+      root-user MFA is moot now that AWS is dropped.
+- [ ] GCP guardrails, in order, before any resource is created:
+  - [ ] Confirm 2-Step Verification is on for the Google account that owns the GCP billing account, and
+        whether it is the same account as the Tailscale identity provider.
+  - [ ] Do **not** use *Upgrade*. The trial ($300, shown as €269) expires 1 February 2027 and Google
+        states there are no automatic charges; when it ends resources stop, and unless the account is
+        upgraded during the grace period they are permanently deleted. The cloud node has a hard deadline.
+  - [ ] Create a dedicated project for the lab so everything can be torn down by deleting it.
+  - [ ] Set a billing budget with alerts to an address that is checked, as a backstop and to watch how the
+        credit is consumed.
+  - [ ] Choose a region and use it for everything (an EU region for latency; the always-free `e2-micro` is
+        US-only and not needed during the trial).
+  - [ ] Check the project's default network for pre-created firewall rules that allow SSH or RDP from
+        anywhere, and delete them or avoid the default network. Nothing is exposed on 22 or 3389.
+  - [ ] No service-account key files: attach a minimally-scoped service account to the VM instead.
+  - [ ] Read Google's acceptable-use and security-testing terms. Offensive testing stays on the local hosts
+        regardless, so they only touch the misconfiguration demo, which changes this project's own settings.
 - [ ] Launch the cloud VM, join it to Tailscale as `tag:cloud-agent`, and enrol its Wazuh agent against the
       manager's tunnel address.
-- [ ] Ship CloudTrail into Wazuh, then run the deliberate misconfiguration demo.
+- [ ] Ship Cloud Audit Logs into Wazuh (the Wazuh GCP module reads Pub/Sub and Storage), then run the
+      deliberate misconfiguration demo.

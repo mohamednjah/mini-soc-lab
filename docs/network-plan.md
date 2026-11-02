@@ -91,8 +91,8 @@ the VMs to a **LAN segment** (fully isolated, no host or internet connectivity) 
 ## Phase 3 — connecting the cloud node
 
 The cloud VM must reach the manager, which sits on a private IP behind VMware NAT and a home router —
-two layers of address translation. The cloud provider is not yet chosen; the connectivity design below does
-not depend on it.
+two layers of address translation. The cloud provider is Google Cloud (see the decisions log); the connectivity
+design below does not depend on it.
 
 **Decision: Tailscale.** Both the manager and the cloud VM make outbound connections to Tailscale's
 coordination service and form a WireGuard tunnel between them. Each gets a `100.x.y.z` address, and the

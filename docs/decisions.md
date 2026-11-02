@@ -21,6 +21,31 @@ Format:
 
 ---
 
+## 2026-11-02 — Cloud provider: Google Cloud, replacing AWS
+- **Status:** Accepted. Supersedes *Cloud provider: AWS over Azure* (2026-10-21) and its clarification below.
+- **Context:** The AWS choice rested on its Free plan, which closes itself when credits run out and so
+  limits spending. After signing up, AWS showed that this account is **not eligible for the free plan**:
+  the registration details matched an existing or previously registered AWS account, free plans being
+  exclusive to new customers. The offered alternative was a paid plan with no credit and pay-as-you-go
+  billing from the first charge. Until then the Billing console showed "Unable to load" for every cost
+  figure and an empty credit balance, consistent with an account left waiting on that decision. The AWS
+  paid-plan prompt was never confirmed. Eligibility was a condition of the free plan that was not checked
+  before choosing AWS.
+- **Decision:** Google Cloud, on its Free Trial.
+- **Alternatives considered:**
+  - **AWS paid plan** — would work, but means real spending with no credit buffer, for a project whose cloud
+    node needs a few hours of VM time. Declined.
+  - **Azure** — the original plan. Not tried: its credit lasts only 30 days and keeping anything running after
+    that requires upgrading to pay-as-you-go, and its free account has the same new-customer eligibility rule.
+  - **Evading the eligibility check with a second account** — against AWS's terms, and risks the account.
+- **Consequences:** The account shows €269 of credit (the $300 welcome credit), none used, expiring
+  **1 February 2027**. Google states there are no automatic charges, so spending starts only if the account is
+  upgraded by hand; the Upgrade button is therefore never used. When the trial ends, resources stop, and are
+  permanently deleted if the account is not upgraded during the grace period, so the cloud node has a hard
+  deadline roughly 90 days out. GCP is named alongside AWS and Azure in two of the job descriptions, and Wazuh
+  has a GCP module (Pub/Sub and Storage). GCP-specific guardrails are listed in the Phase 3 notes, including
+  checking the default network for firewall rules that allow SSH or RDP from anywhere.
+
 ## 2026-11-02 — AWS Free plan: some actions upgrade it automatically (clarifies the AWS decision)
 - **Status:** Accepted. Qualifies a claim in the 2026-10-21 AWS entry.
 - **Context:** That entry says overspending is impossible "without deliberately upgrading to a Paid plan".

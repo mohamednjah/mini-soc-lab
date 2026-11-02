@@ -27,9 +27,9 @@ Next: Phase 3, extending the lab with a cloud node.
 
 ```
                         ┌─────────────────────────┐
-                        │   AWS (free plan)        │
+                        │   GCP (free trial)       │
                         │   Linux VM (agent)        │
-                        │   SG + IAM least-priv     │
+                        │   FW + IAM least-priv     │
                         └────────────┬──────────────┘
                                      │ Wazuh agent
                                      │ + cloud audit logs
@@ -69,7 +69,7 @@ detections/
 incidents/        Incident response write-ups: timeline, evidence, remediation (Phase 4)
 hardening/        CIS Benchmark controls applied + before/after SCA scores (Phase 5)
 analytics/        Python/Pandas pipeline, anomaly detection, model evaluation (Phase 7)
-cloud/            Cloud node config, security-group rules, misconfiguration demo (Phase 3)
+cloud/            Cloud node config, firewall rules, misconfiguration demo (Phase 3)
 docs/             Decision log, diagrams, per-phase notes
 ```
 
