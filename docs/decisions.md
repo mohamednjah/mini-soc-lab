@@ -21,6 +21,20 @@ Format:
 
 ---
 
+## 2026-11-02 — AWS Free plan: some actions upgrade it automatically (clarifies the AWS decision)
+- **Status:** Accepted. Qualifies a claim in the 2026-10-21 AWS entry.
+- **Context:** That entry says overspending is impossible "without deliberately upgrading to a Paid plan".
+  AWS's own documentation says a free plan **automatically upgrades** to a paid plan if the account joins AWS
+  Organizations, sets up a Control Tower landing zone, joins the AWS Partner Network, signs a Professional
+  Services contract or Enterprise Agreement, buys a Skill Builder Team subscription, or is designated HIPAA-
+  or SEC-compliant.
+- **Decision:** Keep AWS, and treat the spending guarantee as conditional: it holds only while none of those
+  actions is taken. Use a plain IAM user for day-to-day access and avoid anything that creates an AWS
+  Organization. Whether other services, such as IAM Identity Center, create one on a free plan has not been
+  checked, so they are avoided too.
+- **Consequences:** The cost guardrail is no longer purely a property of the account; it depends on the
+  account staying free of those triggers, so the budget alert is still needed as a backstop.
+
 ## 2026-10-21 — Cloud provider: AWS over Azure
 - **Status:** Accepted. Supersedes the earlier working assumption of Azure in the Phase 3 plan.
 - **Context:** The plan assumed Azure, chosen for its fit with a Windows and Active Directory lab, the

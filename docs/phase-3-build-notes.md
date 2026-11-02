@@ -189,6 +189,11 @@ different things even though everything ultimately travels over one network card
   - [ ] Create a budget that counts usage before credits, with alerts to an address that is checked.
   - [ ] Create an IAM user with MFA for day-to-day work, and stop using root.
   - [ ] Choose a region and use it for everything.
+  - [ ] Avoid anything that auto-upgrades a free plan: AWS Organizations, Control Tower, the Partner
+        Network, Professional Services contracts, Enterprise Agreements, Skill Builder Team, HIPAA or SEC
+        designation. Use a plain IAM user rather than IAM Identity Center until that is checked.
+  - [ ] Billing and Cost Management home shows "Unable to load" for cost figures. Find the cause (Cost
+        Explorer not enabled, permissions, or the browser) and locate the credit balance under *Credits*.
   - [ ] Security group with no inbound rules; nothing exposed on 22 or 3389 to the internet.
   - [x] Read AWS's penetration-testing policy: testing your own EC2 instances needs no prior approval;
         command-and-control testing needs approval, denial-of-service is prohibited, and AWS's own
