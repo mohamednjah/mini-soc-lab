@@ -27,28 +27,28 @@ Next: Phase 3, extending the lab with a cloud node.
 
 ```
                         ┌─────────────────────────┐
-                        │   GCP (free trial)       │
-                        │   Linux VM (agent)        │
-                        │   FW + IAM least-priv     │
-                        └────────────┬──────────────┘
+                        │   GCP (free trial)      │
+                        │   Linux VM (agent)      │
+                        │   FW + IAM least-priv   │
+                        └────────────┬────────────┘
                                      │ Wazuh agent
                                      │ + cloud audit logs
-┌────────────────────────────────────┼──────────────────────┐
-│  Home lab (isolated virtual network)                       │
-│                                     │                       │
-│  ┌──────────────┐  ┌──────────────┐│┌──────────────┐       │
-│  │ Windows Server│  │ Windows      │││ Rocky Linux 9 │       │
-│  │ + AD DS       │  │ client       │││ (RHEL-family) │       │
-│  │ (soclab.local)│  │              │││               │       │
-│  └──────┬───────┘  └──────┬───────┘│└──────┬────────┘       │
-│         │  Sysmon+agent   │ agent   │        │  agent        │
-│         └─────────────────┴─────────┴────────┘               │
-│                            │                                  │
-│                   ┌────────▼─────────┐                        │
-│                   │  Wazuh manager    │  ← SIEM / XDR / SCA    │
-│                   │  (Rocky Linux)    │                        │
-│                   └────────┬──────────┘                        │
-└────────────────────────────┼──────────────────────────────────┘
+┌────────────────────────────────────┼────────────────────────────┐
+│  Home lab (isolated virtual network)                            │
+│                                     │                           │
+│  ┌──────────────┐  ┌──────────────┐│┌───────────────┐           │ 
+│  │ Windows Server│ │ Windows      │││ Rocky Linux 9 │           │
+│  │ + AD DS       │ │ client       │││ (RHEL-family) │           │
+│  │ (soclab.local)│ │              │││               │           │
+│  └──────┬───────┘  └──────┬───────┘│└──────┬────────┘           │
+│         │  Sysmon+agent   │ agent   │        │  agent           │
+│         └─────────────────┴─────────┴────────┘                  │
+│                            │                                    │
+│                   ┌────────▼──────────┐                         │
+│                   │  Wazuh manager    │  ← SIEM / XDR / SCA     │
+│                   │  (Rocky Linux)    │                         │
+│                   └────────┬──────────┘                         │
+└────────────────────────────┼────────────────────────────────────┘
                               │ alert export (API)
                      ┌────────▼─────────┐
                      │ Python / Pandas   │  ← anomaly detection,

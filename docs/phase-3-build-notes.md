@@ -173,6 +173,28 @@ The manager therefore has two interfaces with two addresses and two zones: `ens1
 `tailnet`) carries the decrypted Wazuh traffic from the cloud VM. That is why the two zones govern
 different things even though everything ultimately travels over one network card.
 
+## GCP: cost guardrail
+
+The cloud provider is Google Cloud on its Free Trial: a $300 welcome credit (shown as €269) valid for 90
+days, expiring 1 February 2027. Google states there are no automatic charges, so spending can only begin
+if the billing account is upgraded by hand; the Upgrade button is never used. A budget is still set as a
+backstop and a way to watch consumption.
+
+![Budget](images/gcp-budget.png)
+
+`lab-budget`: monthly, €10, alerts at 50%, 90% and 100% of actual spend, emailed to the billing
+administrators. "Spend cap status: not applicable" confirms it is an alert and stops nothing.
+
+**The default would have made it useless.** Google's documentation says that when a budget is created, all
+*Savings* types are selected by default, and that actual spend is then calculated as total cost **minus**
+discounts and credits. A promotional credit is one of those. During the trial the credit covers everything,
+so the calculated spend stays at zero and the budget never fires. To monitor spend before credits, none of
+the Savings options may be selected, and they were all cleared. The row's "No credits used" is consistent
+with that, but the scope screen is the authoritative place to check it.
+
+Limits to remember: billing data lags by hours, so an alert can arrive after the spend, and the budget
+cannot prevent anything. The trial's own behaviour is the real protection.
+
 ## Still to do
 
 - [x] Confirm `/etc/resolv.conf` still lists the two original nameservers after `tailscale up`: it lists
@@ -194,8 +216,8 @@ different things even though everything ultimately travels over one network card
         states there are no automatic charges; when it ends resources stop, and unless the account is
         upgraded during the grace period they are permanently deleted. The cloud node has a hard deadline.
   - [ ] Create a dedicated project for the lab so everything can be torn down by deleting it.
-  - [ ] Set a billing budget with alerts to an address that is checked, as a backstop and to watch how the
-        credit is consumed.
+  - [x] Set a billing budget with alerts to an address that is checked, as a backstop and to watch how the
+        credit is consumed (`lab-budget`, €10, with the Savings options cleared).
   - [ ] Choose a region and use it for everything (an EU region for latency; the always-free `e2-micro` is
         US-only and not needed during the trial).
   - [ ] Check the project's default network for pre-created firewall rules that allow SSH or RDP from
