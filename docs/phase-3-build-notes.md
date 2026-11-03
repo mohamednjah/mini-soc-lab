@@ -214,6 +214,28 @@ nor Tailscale (`100.64.0.0/10`), add **no** ingress allow rules from the interne
 network. GCP's implied rules deny all ingress and allow all egress, so outbound connections, which
 Tailscale and the Wazuh agent both use, work without any inbound exposure.
 
+### The replacement network
+
+A custom-mode VPC, `lab-vpc`, was created with one subnet, `lab-subnet`, in `europe-west8` (Milan), IPv4
+only, range `10.20.0.0/24`. The range overlaps neither the lab network (`10.10.10.0/24`) nor Tailscale
+(`100.64.0.0/10`). The pre-made firewall rule options were left unticked, and the `default` network was
+deleted, which removed its four rules.
+
+![lab-vpc](images/gcp-lab-vpc.png)
+
+Confirmed from Cloud Shell:
+
+```bash
+gcloud compute networks subnets list
+gcloud compute firewall-rules list --format=json
+```
+
+![Network verification](images/gcp-network-verification.png)
+
+`lab-subnet` is in `europe-west8` on `lab-vpc`, range `10.20.0.0/24`, IPv4 only. The firewall rule list is
+`[]`: no rules at all, so only GCP's implied rules apply (deny all ingress, allow all egress). The account
+name and project ID in the shell prompt are redacted.
+
 ## Still to do
 
 - [x] Confirm `/etc/resolv.conf` still lists the two original nameservers after `tailscale up`: it lists
@@ -240,8 +262,10 @@ Tailscale and the Wazuh agent both use, work without any inbound exposure.
         credit is consumed (`lab-budget`, €10, with the Savings options cleared).
   - [ ] Choose a region and use it for everything (an EU region for latency; the always-free `e2-micro` is
         US-only and not needed during the trial).
-  - [ ] Check the project's default network for pre-created firewall rules that allow SSH or RDP from
-        anywhere, and delete them or avoid the default network. Nothing is exposed on 22 or 3389.
+  - [x] Check the project's default network for pre-created firewall rules that allow SSH or RDP from
+        anywhere: it had them, so it was deleted and replaced by `lab-vpc`.
+  - [x] Confirm `lab-vpc` has no firewall rules of its own and that its subnet is `10.20.0.0/24` in
+        `europe-west8`.
   - [ ] No service-account key files: attach a minimally-scoped service account to the VM instead.
   - [ ] Read Google's acceptable-use and security-testing terms. Offensive testing stays on the local hosts
         regardless, so they only touch the misconfiguration demo, which changes this project's own settings.
