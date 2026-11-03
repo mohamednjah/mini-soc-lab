@@ -195,6 +195,25 @@ with that, but the scope screen is the authoritative place to check it.
 Limits to remember: billing data lags by hours, so an alert can arrive after the spend, and the budget
 cannot prevent anything. The trial's own behaviour is the real protection.
 
+## GCP: the default network
+
+A dedicated project, `mini-soc-lab`, holds everything built for the cloud node, so deleting it removes the
+lot. Enabling the Compute Engine API created a `default` network with four pre-made firewall rules:
+
+![Default firewall rules](images/gcp-default-firewall-rules.png)
+
+`default-allow-ssh` (TCP 22), `default-allow-rdp` (TCP 3389), `default-allow-icmp` and
+`default-allow-internal` (all TCP, UDP and ICMP between machines on the network), all ingress, applying to
+every VM, at priority 65534. The screenshot truncates the source-range column, so where the traffic may
+come *from* was not read directly; the usual defaults for the first three are the whole internet
+(`0.0.0.0/0`), which would expose SSH and RDP to anyone for any VM placed there. That alone is enough to
+rule the default network out for this node.
+
+Plan: create a custom-mode VPC with a single subnet whose range overlaps neither the lab (`10.10.10.0/24`)
+nor Tailscale (`100.64.0.0/10`), add **no** ingress allow rules from the internet, and delete the default
+network. GCP's implied rules deny all ingress and allow all egress, so outbound connections, which
+Tailscale and the Wazuh agent both use, work without any inbound exposure.
+
 ## Still to do
 
 - [x] Confirm `/etc/resolv.conf` still lists the two original nameservers after `tailscale up`: it lists
@@ -215,7 +234,8 @@ cannot prevent anything. The trial's own behaviour is the real protection.
   - [ ] Do **not** use *Upgrade*. The trial ($300, shown as €269) expires 1 February 2027 and Google
         states there are no automatic charges; when it ends resources stop, and unless the account is
         upgraded during the grace period they are permanently deleted. The cloud node has a hard deadline.
-  - [ ] Create a dedicated project for the lab so everything can be torn down by deleting it.
+  - [x] Create a dedicated project for the lab so everything can be torn down by deleting it
+        (`mini-soc-lab`).
   - [x] Set a billing budget with alerts to an address that is checked, as a backstop and to watch how the
         credit is consumed (`lab-budget`, €10, with the Savings options cleared).
   - [ ] Choose a region and use it for everything (an EU region for latency; the always-free `e2-micro` is
