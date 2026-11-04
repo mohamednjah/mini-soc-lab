@@ -117,9 +117,10 @@ Each flow gets a test that can fail:
 
 ## Decisions still open
 
-1. **Require a password for agent enrolment?** Enrolment on 1515 needs no password by default. The Tailscale
-   policy already limits who can reach it, so the exposure is small, but a password closes the gap if the
-   tag is ever misused. Recommendation: yes.
+1. **Require a password for agent enrolment?** *Decided: yes.* Enrolment on 1515 needs no password by
+   default. The Tailscale policy already limits who can reach it, so the exposure is small, but a password
+   closes the gap if the tag is ever misused. It applies to new enrolments only: the agents already
+   enrolled on the Windows hosts keep their keys.
 2. **Cloud audit logs now or later?** Flow 4 adds a service-account key and a logging sink. Recommendation:
    after the VM and agent work, as a separate step.
 3. **VM image and size.** Proposed: Rocky Linux (matching the manager) on a small `e2` type, availability of

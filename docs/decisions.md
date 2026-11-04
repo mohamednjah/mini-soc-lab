@@ -21,6 +21,20 @@ Format:
 
 ---
 
+## 2026-11-04 — Require a password for Wazuh agent enrolment
+- **Status:** Accepted
+- **Context:** Wazuh's enrolment service on TCP 1515 accepts any agent that can reach it, with no
+  password, by default. The cloud node's agent will reach it over the tunnel, so port 1515 is the one
+  surface through which a rogue agent could register and feed false events into the SIEM.
+- **Decision:** Enable password authentication on the manager (`use_password` in the `<auth>` section and
+  a root-owned `authd.pass`), and supply the password when enrolling the cloud agent.
+- **Alternatives considered:** leaving it open and relying on the Tailscale policy alone, which already
+  restricts 1515 to the cloud-agent tag. Reasonable for a lab, but it leaves a single control between a
+  misused tag and a poisoned SIEM.
+- **Consequences:** One more secret to handle: it lives only on the manager and in the install command,
+  never in the repository. It affects new enrolments only; the two Windows agents already hold keys.
+  A forgotten password blocks re-enrolment of a rebuilt VM until it is reset.
+
 ## 2026-11-04 — Administering the cloud VM: Identity-Aware Proxy tunnel
 - **Status:** Accepted
 - **Context:** The cloud network has no inbound rules, which is the intent, but a VM that nothing can reach
