@@ -290,8 +290,10 @@ holding `lab-vpc`, and offered to enable the Compute API there. Answering yes wo
   - [ ] No service-account key files: attach a minimally-scoped service account to the VM instead.
   - [ ] Read Google's acceptable-use and security-testing terms. Offensive testing stays on the local hosts
         regardless, so they only touch the misconfiguration demo, which changes this project's own settings.
-- [ ] Confirm from `gcloud compute firewall-rules list` that `allow-iap-ssh` has source range
-      `35.235.240.0/20` and target tag `iap-ssh`, and that it is the only rule on `lab-vpc`.
+- [x] Confirm from `gcloud compute firewall-rules list` that `allow-iap-ssh` has source range
+      `35.235.240.0/20` and target tag `iap-ssh`, and that it is the only rule on `lab-vpc`. The listing
+      shows exactly one rule with those values. The range is the one Google's documentation gives for IAP
+      TCP forwarding ("all IP addresses that IAP uses for TCP forwarding").
 - [ ] Check whether a second, older project exists in the account and whether anything is running in it.
 - [ ] Launch the cloud VM with the `iap-ssh` tag, join it to Tailscale as `tag:cloud-agent`, and enrol its Wazuh agent against the
       manager's tunnel address.
