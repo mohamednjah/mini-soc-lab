@@ -398,6 +398,37 @@ lab network can reach the enrolment port as well as the tunnel; the control is n
 with the firewall zones that decide who can reach the port at all. A check that both Windows agents remain
 active is still to confirm.
 
+## Testing the tunnel from the cloud VM
+
+Before installing anything, the manager's tunnel address was probed from `gcp-node01` with bash's built-in
+TCP redirection, so no extra tools were needed. A port counts as open if the connection completes within six
+seconds:
+
+```bash
+for p in 1514 1515 22 443 55000; do
+  printf "port %-6s " $p
+  timeout 6 bash -c "exec 3<>/dev/tcp/100.73.251.78/$p" 2>/dev/null && echo OPEN || echo "refused/filtered"
+done
+```
+
+![Port test through the tunnel](images/tailnet-port-test-from-vm.png)
+
+| Port | Service | Result |
+|---|---|---|
+| 1514 | Agent events | open |
+| 1515 | Enrolment | open |
+| 22 | SSH | refused or filtered |
+| 443 | Dashboard | refused or filtered |
+| 55000 | Wazuh API | refused or filtered |
+
+This matches the design: the two agent ports answer and the three management ports do not. It is the first
+live use of the access policy and the manager's `tailnet` zone together.
+
+**What this does not prove.** The script cannot tell a refusal from a silent drop, and it cannot tell which
+layer blocked a port. Two controls both say no to 22, 443 and 55000: the Tailscale policy and the `firewalld`
+zone. A port blocked by either would look identical here. Showing that the `firewalld` layer works on its own
+is still the separate test below. The OS Login username in the prompt is redacted in the screenshot.
+
 ## Still to do
 
 - [x] Confirm `/etc/resolv.conf` still lists the two original nameservers after `tailscale up`: it lists
@@ -446,8 +477,9 @@ active is still to confirm.
 - [x] Launch the cloud VM with the `iap-ssh` tag (`gcp-node01`, created).
 - [x] Join `gcp-node01` to Tailscale as `tag:cloud-agent` with a tagged auth key: connected, tag applied,
       expiry disabled.
-- [ ] Test from `gcp-node01` that the manager's tunnel address answers on TCP 1514 and 1515 and refuses
-      22, 443 and 55000.
+- [x] Test from `gcp-node01` that the manager's tunnel address answers on TCP 1514 and 1515 and refuses
+      22, 443 and 55000: 1514 and 1515 open, the other three refused or filtered (which layer blocked them
+      is not shown by this test).
 - [ ] Enrol the Wazuh agent on `gcp-node01` against the manager's tunnel address, using the enrolment
       password, and confirm it appears as active.
 - [ ] Ship Cloud Audit Logs into Wazuh (the Wazuh GCP module reads Pub/Sub and Storage), then run the
