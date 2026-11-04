@@ -286,8 +286,20 @@ The generated password is redacted in the screenshot. The `<auth>` block shows t
 port 1515, `purge` on, and `ssl_verify_host` off. The setting applies to new enrolments only, since the two
 Windows agents already hold their keys.
 
-The screenshot ends before the manager restart, so that step and a check that both Windows agents remain
-active are listed below as still to confirm.
+The manager was then restarted so the setting takes effect:
+
+```bash
+sudo systemctl restart wazuh-manager
+sudo systemctl is-active wazuh-manager
+sudo ss -tlnp | grep 1515
+```
+
+![Manager restarted, enrolment service listening](images/wazuh-manager-restart-authd.png)
+
+The manager is `active` and `wazuh-authd` is listening on `0.0.0.0:1515`. That is every interface, so the
+lab network can reach the enrolment port as well as the tunnel; the control is now the password, together
+with the firewall zones that decide who can reach the port at all. A check that both Windows agents remain
+active is still to confirm.
 
 ## Still to do
 
@@ -322,8 +334,8 @@ active are listed below as still to confirm.
   - [ ] No service-account key files: attach a minimally-scoped service account to the VM instead.
   - [ ] Read Google's acceptable-use and security-testing terms. Offensive testing stays on the local hosts
         regardless, so they only touch the misconfiguration demo, which changes this project's own settings.
-- [ ] Restart `wazuh-manager` so the enrolment password takes effect, confirm it is active and still
-      listening on 1515, and confirm `DC01` and `WIN10-CLIENT` still show as active.
+- [x] Restart `wazuh-manager` so the enrolment password takes effect; it is active and listening on 1515.
+- [ ] Confirm `DC01` and `WIN10-CLIENT` still show as active after the restart.
 - [ ] Confirm the enrolment password is saved in the password manager, not in the repository.
 - [x] Confirm from `gcloud compute firewall-rules list` that `allow-iap-ssh` has source range
       `35.235.240.0/20` and target tag `iap-ssh`, and that it is the only rule on `lab-vpc`. The listing
