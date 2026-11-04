@@ -121,8 +121,9 @@ Each flow gets a test that can fail:
    default. The Tailscale policy already limits who can reach it, so the exposure is small, but a password
    closes the gap if the tag is ever misused. It applies to new enrolments only: the agents already
    enrolled on the Windows hosts keep their keys.
-2. **Cloud audit logs now or later?** Flow 4 adds a service-account key and a logging sink. Recommendation:
-   after the VM and agent work, as a separate step.
-3. **VM image and size.** Proposed: Rocky Linux (matching the manager) on a small `e2` type, availability of
-   a Rocky 10 image to be checked.
-4. **Hostname.** Proposed: `gcp-node01`.
+2. **Cloud audit logs now or later?** *Decided: later.* Flow 4 adds a service-account key and a logging
+   sink, so it is a separate step after the VM and agent work.
+3. **VM image and size.** *Open.* Proposed: Rocky Linux (matching the manager) on a small `e2` type. First
+   check whether a suitable Rocky image, and which version, exists in GCP's public image project.
+4. **Hostname.** *Decided: `gcp-node01`.* It becomes the agent name in every alert, so it is fixed before
+   enrolment.
