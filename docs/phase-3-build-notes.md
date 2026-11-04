@@ -257,6 +257,38 @@ holding `lab-vpc`, and offered to enable the Compute API there. Answering yes wo
 `default` network with open SSH and RDP rules, so the prompt was declined and the project was switched with
 `gcloud config set project`. The active project is worth checking before any `gcloud` change.
 
+## Password for agent enrolment
+
+Wazuh's enrolment service on TCP 1515 accepts any agent that can reach it, with no password, by default.
+The setup follows Wazuh's documented procedure on the manager: enable `use_password` in the `<auth>` section
+of `ossec.conf`, store the password in a root-owned `authd.pass`, restart the manager.
+
+The starting state was read first, and the file backed up before it was changed:
+
+```bash
+sudo grep -n -A8 "<auth>" /var/ossec/etc/ossec.conf        # use_password was "no"
+sudo cp -p /var/ossec/etc/ossec.conf /var/ossec/etc/ossec.conf.bak
+sudo sed -i 's|<use_password>no</use_password>|<use_password>yes</use_password>|' /var/ossec/etc/ossec.conf
+```
+
+The password was generated from the kernel's random source, because the Wazuh installer removed `openssl`,
+and written without passing through the shell history, then given the permissions Wazuh specifies:
+
+```bash
+PW=$(head -c 24 /dev/urandom | base64 | tr -d '/+=' )
+printf '%s\n' "$PW" | sudo tee /var/ossec/etc/authd.pass > /dev/null; unset PW
+sudo chmod 640 /var/ossec/etc/authd.pass && sudo chown root:wazuh /var/ossec/etc/authd.pass
+```
+
+![Enrolment password setup](images/wazuh-enrolment-password-setup.png)
+
+The generated password is redacted in the screenshot. The `<auth>` block shows the surrounding defaults:
+port 1515, `purge` on, and `ssl_verify_host` off. The setting applies to new enrolments only, since the two
+Windows agents already hold their keys.
+
+The screenshot ends before the manager restart, so that step and a check that both Windows agents remain
+active are listed below as still to confirm.
+
 ## Still to do
 
 - [x] Confirm `/etc/resolv.conf` still lists the two original nameservers after `tailscale up`: it lists
@@ -290,6 +322,9 @@ holding `lab-vpc`, and offered to enable the Compute API there. Answering yes wo
   - [ ] No service-account key files: attach a minimally-scoped service account to the VM instead.
   - [ ] Read Google's acceptable-use and security-testing terms. Offensive testing stays on the local hosts
         regardless, so they only touch the misconfiguration demo, which changes this project's own settings.
+- [ ] Restart `wazuh-manager` so the enrolment password takes effect, confirm it is active and still
+      listening on 1515, and confirm `DC01` and `WIN10-CLIENT` still show as active.
+- [ ] Confirm the enrolment password is saved in the password manager, not in the repository.
 - [x] Confirm from `gcloud compute firewall-rules list` that `allow-iap-ssh` has source range
       `35.235.240.0/20` and target tag `iap-ssh`, and that it is the only rule on `lab-vpc`. The listing
       shows exactly one rule with those values. The range is the one Google's documentation gives for IAP
