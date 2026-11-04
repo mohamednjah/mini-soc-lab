@@ -289,6 +289,14 @@ public address, which it needs to reach the internet for Tailscale and package i
 and 1514 all failed, so nothing answers on it. A timeout cannot distinguish a filtering firewall from a
 service that is not yet running, so the stronger evidence will be IAP login working while direct SSH does not.
 
+**Login through IAP.** The first `gcloud compute ssh --tunnel-through-iap` generated an SSH key pair in
+Cloud Shell and registered its public half in the account's OS Login profile; nothing was written into the
+VM's metadata. The login then succeeded and `whoami` returned an account derived from the Google identity.
+That is the check the negative test was waiting for: direct connections to the public address fail while the
+IAP path works, so the single ingress rule does what it was meant to. (A tunnel-performance warning about
+NumPy appeared and is irrelevant to this use.) The screenshot is not in the repository because the shell
+prompt shows the account name and project ID.
+
 ## Password for agent enrolment
 
 Wazuh's enrolment service on TCP 1515 accepts any agent that can reach it, with no password, by default.
@@ -367,15 +375,19 @@ active is still to confirm.
   - [ ] Read Google's acceptable-use and security-testing terms. Offensive testing stays on the local hosts
         regardless, so they only touch the misconfiguration demo, which changes this project's own settings.
 - [x] Restart `wazuh-manager` so the enrolment password takes effect; it is active and listening on 1515.
-- [ ] Confirm `DC01` and `WIN10-CLIENT` still show as active after the restart.
+- [x] Confirm `DC01` and `WIN10-CLIENT` still show as active after the restart (confirmed earlier, not captured).
+- [x] The enrolment password was rotated after it appeared in a screenshot (not captured). A password
+      change is only read when the enrolment service starts, so the manager must have been restarted after
+      it; the first enrolment with the new password will show whether it was.
 - [ ] Confirm the enrolment password is saved in the password manager, not in the repository.
 - [x] Confirm from `gcloud compute firewall-rules list` that `allow-iap-ssh` has source range
       `35.235.240.0/20` and target tag `iap-ssh`, and that it is the only rule on `lab-vpc`. The listing
       shows exactly one rule with those values. The range is the one Google's documentation gives for IAP
       TCP forwarding ("all IP addresses that IAP uses for TCP forwarding").
-- [ ] Check whether a second, older project exists in the account and whether anything is running in it.
+- [x] Check whether an older `mini-soc` project holds anything: nothing was running in it.
+- [x] Log in to `gcp-node01` through IAP with OS Login.
 - [x] Launch the cloud VM with the `iap-ssh` tag (`gcp-node01`, created).
-- [ ] Log in through IAP, then join it to Tailscale as `tag:cloud-agent`, and enrol its Wazuh agent against the
-      manager's tunnel address.
+- [ ] Join `gcp-node01` to Tailscale as `tag:cloud-agent` with a one-time tagged auth key, then enrol its
+      Wazuh agent against the manager's tunnel address.
 - [ ] Ship Cloud Audit Logs into Wazuh (the Wazuh GCP module reads Pub/Sub and Storage), then run the
       deliberate misconfiguration demo.
