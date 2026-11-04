@@ -252,10 +252,20 @@ It allows SSH only from Google's Identity-Aware Proxy range and only to VMs tagg
 the login before forwarding, so nothing on the internet can reach port 22. The command reported the rule
 created on `lab-vpc` (ingress, TCP 22, priority 1000, enabled).
 
+![IAP rule created](images/gcp-iap-rule-created.png)
+
+Listing the rules confirms the source range and the tag, and that it is the only rule on the network:
+
+![IAP rule verified](images/gcp-iap-rule-verified.png)
+
+The account name and project ID in the shell prompts and URLs of these screenshots are redacted.
+
 A first attempt failed to find the network: Cloud Shell was pointed at a different project from the one
 holding `lab-vpc`, and offered to enable the Compute API there. Answering yes would have created a second
 `default` network with open SSH and RDP rules, so the prompt was declined and the project was switched with
 `gcloud config set project`. The active project is worth checking before any `gcloud` change.
+
+![Compute API prompt on the wrong project](images/gcp-compute-api-wrong-project.png)
 
 ## The cloud VM
 
@@ -285,6 +295,10 @@ gcloud compute instances create gcp-node01 \
 The VM came up `RUNNING` with internal address `10.20.0.2` in `lab-subnet`. It also received an ephemeral
 public address, which it needs to reach the internet for Tailscale and package installs.
 
+![VM created](images/gcp-vm-created.png)
+
+The account name, project ID and public address are redacted in the screenshot.
+
 **Negative test from the internet.** Direct connection attempts to that public address on TCP 22, 3389, 443
 and 1514 all failed, so nothing answers on it. A timeout cannot distinguish a filtering firewall from a
 service that is not yet running, so the stronger evidence will be IAP login working while direct SSH does not.
@@ -294,8 +308,51 @@ Cloud Shell and registered its public half in the account's OS Login profile; no
 VM's metadata. The login then succeeded and `whoami` returned an account derived from the Google identity.
 That is the check the negative test was waiting for: direct connections to the public address fail while the
 IAP path works, so the single ingress rule does what it was meant to. (A tunnel-performance warning about
-NumPy appeared and is irrelevant to this use.) The screenshot is not in the repository because the shell
-prompt shows the account name and project ID.
+NumPy appeared and is irrelevant to this use.)
+
+![SSH key creation prompt](images/gcp-ssh-key-prompt.png)
+
+![Login through IAP](images/gcp-iap-login.png)
+
+The first screenshot is the one-off prompt to create an SSH key in Cloud Shell. In the second, the passphrase
+prompt, the home directory created for the OS Login account and the shell prompt all contain the account
+name and are redacted.
+
+## Joining the cloud VM to Tailscale
+
+The same repository and package as on the manager, installed on `gcp-node01` over the IAP session:
+
+```bash
+sudo curl -fsSL https://pkgs.tailscale.com/stable/rhel/10/tailscale.repo -o /etc/yum.repos.d/tailscale.repo
+sudo dnf install -y tailscale
+sudo systemctl enable --now tailscaled
+```
+
+![Tailscale installed on the VM](images/tailscale-install-on-vm.png)
+
+The VM then joined with an auth key created in the admin console for the tag `tag:cloud-agent`, intended as
+one-time with a short expiry, so the node attaches to the role and not to a person. The key was read
+without echo and kept out of the shell history, and the variable cleared straight afterwards. It is a secret
+and appears nowhere in this repository:
+
+```bash
+read -rs -p "Auth key: " TSKEY; echo
+sudo tailscale up --auth-key="$TSKEY" --accept-dns=false; unset TSKEY
+```
+
+![Joining Tailscale](images/tailscale-join-on-vm.png)
+
+`--accept-dns=false` is kept here for a different reason than on the manager: the VM relies on Google's own
+resolver and nothing in this design uses Tailscale's names. `tailscale up` prints nothing on success, so the
+screenshot alone proves nothing; the admin console is the evidence. It lists `gcp-node01` as connected, with
+`tag:cloud-agent` and the tunnel address `100.87.137.72`, next to `wazuh-manager`.
+
+**Key expiry.** Both machines show "Expiry disabled". The manager needed that setting changed by hand after
+it was tagged, but this VM has it without any action. That fits the earlier surprise being specific to a
+device tagged after it had already joined, whereas this one joined with a tagged auth key from the start.
+This is an inference from one example, not something that was tested.
+
+The Machines page itself is not in the repository.
 
 ## Password for agent enrolment
 
@@ -387,7 +444,11 @@ active is still to confirm.
 - [x] Check whether an older `mini-soc` project holds anything: nothing was running in it.
 - [x] Log in to `gcp-node01` through IAP with OS Login.
 - [x] Launch the cloud VM with the `iap-ssh` tag (`gcp-node01`, created).
-- [ ] Join `gcp-node01` to Tailscale as `tag:cloud-agent` with a one-time tagged auth key, then enrol its
-      Wazuh agent against the manager's tunnel address.
+- [x] Join `gcp-node01` to Tailscale as `tag:cloud-agent` with a tagged auth key: connected, tag applied,
+      expiry disabled.
+- [ ] Test from `gcp-node01` that the manager's tunnel address answers on TCP 1514 and 1515 and refuses
+      22, 443 and 55000.
+- [ ] Enrol the Wazuh agent on `gcp-node01` against the manager's tunnel address, using the enrolment
+      password, and confirm it appears as active.
 - [ ] Ship Cloud Audit Logs into Wazuh (the Wazuh GCP module reads Pub/Sub and Storage), then run the
       deliberate misconfiguration demo.
