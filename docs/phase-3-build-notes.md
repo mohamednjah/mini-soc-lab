@@ -257,6 +257,38 @@ holding `lab-vpc`, and offered to enable the Compute API there. Answering yes wo
 `default` network with open SSH and RDP rules, so the prompt was declined and the project was switched with
 `gcloud config set project`. The active project is worth checking before any `gcloud` change.
 
+## The cloud VM
+
+Created from Cloud Shell against the lab project, with the guardrails in the command:
+
+```bash
+gcloud compute instances create gcp-node01 \
+  --zone=europe-west8-a --machine-type=e2-small \
+  --image-family=rocky-linux-10 --image-project=rocky-linux-cloud \
+  --boot-disk-size=20GB --boot-disk-type=pd-balanced \
+  --network-interface=subnet=lab-subnet \
+  --tags=iap-ssh \
+  --metadata=enable-oslogin=TRUE \
+  --no-service-account --no-scopes
+```
+
+- **Image:** the stock `rocky-linux-10` family from Google's public `rocky-linux-cloud` project, to match the
+  manager. The "optimized" and arm64 families were not used; what the optimized variants change was not
+  checked.
+- **Size:** `e2-small` (2 vCPUs, 2 GB). `e2-micro`'s 1 GB leaves little room once auditd and the agent run.
+- **`--tags=iap-ssh`** makes the IAP firewall rule apply to this VM.
+- **`--no-service-account --no-scopes`** gives the VM no Google credentials of its own, so a compromise of
+  it could not be used against the project. The agent needs none.
+- **`enable-oslogin=TRUE`** ties SSH to the Google identity and IAM permissions instead of key files in
+  project metadata.
+
+The VM came up `RUNNING` with internal address `10.20.0.2` in `lab-subnet`. It also received an ephemeral
+public address, which it needs to reach the internet for Tailscale and package installs.
+
+**Negative test from the internet.** Direct connection attempts to that public address on TCP 22, 3389, 443
+and 1514 all failed, so nothing answers on it. A timeout cannot distinguish a filtering firewall from a
+service that is not yet running, so the stronger evidence will be IAP login working while direct SSH does not.
+
 ## Password for agent enrolment
 
 Wazuh's enrolment service on TCP 1515 accepts any agent that can reach it, with no password, by default.
@@ -342,7 +374,8 @@ active is still to confirm.
       shows exactly one rule with those values. The range is the one Google's documentation gives for IAP
       TCP forwarding ("all IP addresses that IAP uses for TCP forwarding").
 - [ ] Check whether a second, older project exists in the account and whether anything is running in it.
-- [ ] Launch the cloud VM with the `iap-ssh` tag, join it to Tailscale as `tag:cloud-agent`, and enrol its Wazuh agent against the
+- [x] Launch the cloud VM with the `iap-ssh` tag (`gcp-node01`, created).
+- [ ] Log in through IAP, then join it to Tailscale as `tag:cloud-agent`, and enrol its Wazuh agent against the
       manager's tunnel address.
 - [ ] Ship Cloud Audit Logs into Wazuh (the Wazuh GCP module reads Pub/Sub and Storage), then run the
       deliberate misconfiguration demo.
