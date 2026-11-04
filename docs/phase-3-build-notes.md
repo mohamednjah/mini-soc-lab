@@ -236,6 +236,27 @@ gcloud compute firewall-rules list --format=json
 `[]`: no rules at all, so only GCP's implied rules apply (deny all ingress, allow all egress). The account
 name and project ID in the shell prompt are redacted.
 
+## GCP: the administration path
+
+With no inbound rules the cloud VM cannot be logged into, so one narrow exception was added, run from
+Cloud Shell against the lab project:
+
+```bash
+gcloud compute firewall-rules create allow-iap-ssh \
+  --network=lab-vpc --direction=INGRESS --action=ALLOW --rules=tcp:22 \
+  --source-ranges=35.235.240.0/20 --target-tags=iap-ssh \
+  --description="SSH only through Identity-Aware Proxy"
+```
+
+It allows SSH only from Google's Identity-Aware Proxy range and only to VMs tagged `iap-ssh`; Google checks
+the login before forwarding, so nothing on the internet can reach port 22. The command reported the rule
+created on `lab-vpc` (ingress, TCP 22, priority 1000, enabled).
+
+A first attempt failed to find the network: Cloud Shell was pointed at a different project from the one
+holding `lab-vpc`, and offered to enable the Compute API there. Answering yes would have created a second
+`default` network with open SSH and RDP rules, so the prompt was declined and the project was switched with
+`gcloud config set project`. The active project is worth checking before any `gcloud` change.
+
 ## Still to do
 
 - [x] Confirm `/etc/resolv.conf` still lists the two original nameservers after `tailscale up`: it lists
@@ -269,7 +290,10 @@ name and project ID in the shell prompt are redacted.
   - [ ] No service-account key files: attach a minimally-scoped service account to the VM instead.
   - [ ] Read Google's acceptable-use and security-testing terms. Offensive testing stays on the local hosts
         regardless, so they only touch the misconfiguration demo, which changes this project's own settings.
-- [ ] Launch the cloud VM, join it to Tailscale as `tag:cloud-agent`, and enrol its Wazuh agent against the
+- [ ] Confirm from `gcloud compute firewall-rules list` that `allow-iap-ssh` has source range
+      `35.235.240.0/20` and target tag `iap-ssh`, and that it is the only rule on `lab-vpc`.
+- [ ] Check whether a second, older project exists in the account and whether anything is running in it.
+- [ ] Launch the cloud VM with the `iap-ssh` tag, join it to Tailscale as `tag:cloud-agent`, and enrol its Wazuh agent against the
       manager's tunnel address.
 - [ ] Ship Cloud Audit Logs into Wazuh (the Wazuh GCP module reads Pub/Sub and Storage), then run the
       deliberate misconfiguration demo.

@@ -21,6 +21,22 @@ Format:
 
 ---
 
+## 2026-11-04 — Administering the cloud VM: Identity-Aware Proxy tunnel
+- **Status:** Accepted
+- **Context:** The cloud network has no inbound rules, which is the intent, but a VM that nothing can reach
+  has to be set up somehow. The data path is Tailscale; this is about the administration path.
+- **Decision:** One ingress rule allowing TCP 22 only from Google's IAP address range (`35.235.240.0/20`),
+  applied only to VMs carrying the network tag `iap-ssh`. Access is by `gcloud compute ssh --tunnel-through-iap`.
+- **Alternatives considered:**
+  - **A startup script that joins Tailscale with a one-time key** — no inbound rule at all, but the key sits
+    in the VM's metadata for a while, and administration afterwards still needs a route.
+  - **SSH from the internet, or from the home IP** — contradicts the guardrail of exposing nothing on 22;
+    the home address is also dynamic, so the rule would keep breaking.
+- **Consequences:** Nothing on the internet can reach SSH: only Google's proxy can, and it checks a Google
+  login first. The cost is a single, narrow exception to "no ingress rules", plus a dependence on Google's
+  proxy and on the account having permission to use the tunnel. Any VM that should be reachable has to be
+  given the tag deliberately, and a VM without it stays closed.
+
 ## 2026-11-02 — Cloud provider: Google Cloud, replacing AWS
 - **Status:** Accepted. Supersedes *Cloud provider: AWS over Azure* (2026-10-21) and its clarification below.
 - **Context:** The AWS choice rested on its Free plan, which closes itself when credits run out and so
