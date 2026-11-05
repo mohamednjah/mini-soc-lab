@@ -529,9 +529,9 @@ sudo firewall-cmd --get-active-zones
 `eth0` now sits in `public`. Rollback from a still-open session is `--set-default-zone=trusted`; the change
 is permanent, so a reboot would not undo it.
 
-**Not verified.** A second IAP login after the change, to confirm SSH still passes, was not confirmed. The
-agent stayed active in the dashboard, but I cannot show that its last keep-alive came after the change.
-`cockpit` (web console, 9090) remains allowed in the zone; it is unused and could be removed.
+**Checked afterwards.** A new IAP SSH session logged in successfully after the change (confirmed by me, not captured), so SSH still passes the zone. The agent stayed active in the dashboard, but I cannot
+show that its last keep-alive came after the change. `cockpit` (web console, 9090) remains allowed in the
+zone; it is unused and could be removed.
 
 ## ICMP through the tunnel
 
@@ -555,9 +555,11 @@ so, instead of silently dropping it. Two conclusions:
   port restrictions work without the Tailscale policy; that is the separate test below.
 - Tailscale filters packets before the kernel sees them, so for `firewalld` to have rejected the ping, the
   policy layer had already let ICMP echo through despite the rule saying TCP only. **This is unexplained.**
-  Either the policy in the console differs from the versioned file, or Tailscale has a built-in allowance
-  for echo requests. Comparing the saved policy with [../cloud/tailscale-policy.json](../cloud/tailscale-policy.json)
-  has not been done yet.
+  I compared the policy saved in the console with
+  [../cloud/tailscale-policy.json](../cloud/tailscale-policy.json) and found them identical (not captured),
+  which rules out a leftover rule. What remains is that Tailscale itself lets ICMP echo through. That is
+  an inference from the one observation, not something confirmed in Tailscale's documentation, and it means
+  the policy layer cannot be relied on to stop ICMP.
 
 The block was then made permanent (`--permanent --zone=tailnet --add-icmp-block=echo-request` and a reload),
 so the zone does what the notes claim: only TCP 1514 and 1515. `tailscale ping`, which is a Tailscale-level
@@ -638,15 +640,15 @@ manager to see its NAT behaviour.
       password: ID 003, active in the dashboard and in `agent_control`.
 - [x] Switch the cloud VM's default `firewalld` zone from `trusted` to `public`, and block ICMP echo in the
       manager's `tailnet` zone (permanent).
-- [ ] Compare the access policy saved in the Tailscale console with `cloud/tailscale-policy.json`, to explain
-      why ICMP echo passed a TCP-only rule.
-- [ ] Log in to `gcp-node01` through IAP in a new session, to confirm SSH works after the zone change.
+- [x] Compare the access policy saved in the Tailscale console with `cloud/tailscale-policy.json`: reported
+      identical, so the ICMP result is not explained by the policy text (see above).
+- [x] Log in to `gcp-node01` through IAP in a new session after the zone change: it works.
 - [ ] Power the Windows VMs on and confirm `DC01` and `WIN10-CLIENT` return to Active after the manager
-      restart.
+      restart. **Skipped for now** (the VMs are off to save RAM). Until then, the
+      claim that existing agents survive the enrolment-password restart is unverified.
 - [ ] Optional: remove the unused `cockpit` service from the VM's `public` zone.
 - [ ] Optional: compare the relayed path with the zone back in `trusted`, and run `tailscale netcheck`.
-- [ ] Open the agent's Configuration Assessment page and record the pre-hardening CIS score for `gcp-node01`
-      in `hardening/baseline.md`.
+- [x] Record the pre-hardening CIS score for `gcp-node01` in `hardening/baseline.md`: 55%.
 - [ ] Negative test from the verification plan: plain SSH to the VM's public address from outside IAP should
       time out.
 - [ ] Ship Cloud Audit Logs into Wazuh (the Wazuh GCP module reads Pub/Sub and Storage), then run the

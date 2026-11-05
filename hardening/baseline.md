@@ -1,8 +1,9 @@
 # Baseline compliance scores
 
 Security Configuration Assessment (SCA) results taken **before any hardening**, so Phase 5 has an honest
-starting point. Both hosts are as built in Phases 1 and 2: default Windows configuration, domain-joined,
-with the Wazuh agent and Sysmon installed and no CIS controls applied.
+starting point. The Windows hosts are as built in Phases 1 and 2: default configuration, domain-joined,
+with the Wazuh agent and Sysmon installed and no CIS controls applied. The cloud node, added in Phase 3, is
+a stock Rocky Linux 10 image with the Wazuh agent and Tailscale installed.
 
 Wazuh evaluates each host against a CIS Benchmark policy shipped with the agent. Scores below are as the
 dashboard reports them (Configuration Assessment, per agent).
@@ -11,6 +12,14 @@ dashboard reports them (Configuration Assessment, per agent).
 |---|---|---|---|---|---|---|---|
 | `DC01` | CIS Microsoft Windows Server 2022 Benchmark v2.0.0 | 359 | 99 | 260 | 0 | **27%** | 19 Oct 2026, 16:28 |
 | `WIN10-CLIENT` | CIS Microsoft Windows 10 Enterprise Benchmark v4.0.0 | 424 | 119 | 300 | 5 | **28%** | 19 Oct 2026, 15:49 |
+| `gcp-node01` | CIS Rocky Linux 10 Benchmark v1.0.0 | 166 | 89 | 70 | 7 | **55%** | 5 Nov 2026, 06:32 (dashboard time) |
+
+`gcp-node01` is a scheduled scan of the VM roughly twelve hours after it enrolled. One setting had changed
+before it was taken or may have changed after: the host firewall's default zone moved from `trusted` to
+`public` on 5 November (see the Phase 3 notes). The dashboard's timezone was not checked, so I cannot say
+which side of that change the scan falls on, and the figure should be read as "as built, plus at most that
+one change". The score is the dashboard's, which appears to round the pass rate down (89 of 159 scored
+checks is 56%, shown as 55%). The dashboard screenshot is not kept in the repository.
 
 `DC01`:
 
