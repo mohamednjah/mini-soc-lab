@@ -429,7 +429,161 @@ layer blocked a port. Two controls both say no to 22, 443 and 55000: the Tailsca
 zone. A port blocked by either would look identical here. Showing that the `firewalld` layer works on its own
 is still the separate test below. The OS Login username in the prompt is redacted in the screenshot.
 
+## Installing and enrolling the Wazuh agent
+
+The repository definition and key were added from the documented RPM procedure, which I did not check against
+Wazuh's installation page first; it worked, and the package came from the repository:
+
+```bash
+sudo rpm --import https://packages.wazuh.com/key/GPG-KEY-WAZUH
+sudo tee /etc/yum.repos.d/wazuh.repo > /dev/null <<'EOF'
+[wazuh]
+gpgcheck=1
+gpgkey=https://packages.wazuh.com/key/GPG-KEY-WAZUH
+enabled=1
+name=EL-$releasever - Wazuh
+baseurl=https://packages.wazuh.com/4.x/yum/
+protect=1
+EOF
+```
+
+![Wazuh repository added](images/gcp-wazuh-repo-added.png)
+
+The agent was pinned to the manager's version (an agent must not be newer than its manager), with the
+manager's tunnel address and the chosen agent name passed as deployment variables. The installer does not
+start the service:
+
+```bash
+sudo WAZUH_MANAGER='100.73.251.78' WAZUH_AGENT_NAME='gcp-node01' dnf install -y wazuh-agent-4.14.9
+```
+
+![Agent installed](images/gcp-wazuh-agent-install.png)
+
+`wazuh-agent-4.14.9-1` installed from the `wazuh` repository. The first listing of available versions
+(`dnf list --showduplicates`) was skipped; the pinned install succeeding shows the version exists. One worry
+did not materialise: `sudo` normally resets the environment, but the variables arrived, and the config
+contains the manager address.
+
+![Manager address in ossec.conf](images/gcp-wazuh-agent-manager-address.png)
+
+The enrolment password was written to `authd.pass` the same way as on the manager, read without echo so it
+never reaches the shell history or the process list, with the permissions Wazuh specifies:
+
+```bash
+read -rs -p "Enrolment password: " PW; echo
+printf '%s\n' "$PW" | sudo tee /var/ossec/etc/authd.pass > /dev/null; unset PW
+sudo chmod 640 /var/ossec/etc/authd.pass && sudo chown root:wazuh /var/ossec/etc/authd.pass
+```
+
+![Password prompt, nothing echoed](images/gcp-wazuh-agent-password-prompt.png)
+
+The agent was then started:
+
+```bash
+sudo systemctl enable --now wazuh-agent
+```
+
+![Agent started](images/gcp-wazuh-agent-start.png)
+
+**How enrolment was verified.** The service reported `active`, but the log search printed nothing in the
+same second, and the log itself was never read afterwards, so there is no log excerpt here. The evidence is
+on the manager instead: `agent_control -l` lists `gcp-node01` as ID 003, `Active`, and the dashboard agent
+page shows it active at version 4.14.9 with the tunnel address `100.87.137.72`, registered on 4 November and
+with a recent keep-alive on 5 November. Its inventory is populated (2 cores, 1.7 GB, hostname `gcp-node01`),
+and the events graph begins with a burst right after enrolment. That shows events arriving, though no
+marker event was sent. The dashboard screenshots are not kept in the repository.
+
+The enrolment password worked on first use, which also shows the manager was restarted after the rotation.
+
+**Windows agents.** `agent_control -l` listed `DC01` and `WIN10-CLIENT` as `Disconnected`. Both VMs had been
+shut down to save RAM, so this is expected, but it means the check that they survive the manager restart
+has not been observed yet.
+
+## Host firewall on the cloud VM
+
+I had assumed this VM needed nothing beyond the Tailscale policy and the VPC firewall, and then noticed I had
+not looked at the VM's own host firewall. Reading it first:
+
+![firewalld state before the change](images/gcp-vm-firewalld-trusted-zone.png)
+
+`firewalld` is active, but `eth0` is in the **`trusted`** zone, which is also the default. `trusted` accepts
+all traffic. `tailscale0` is not listed in any zone, so its traffic falls to the default zone too. I did not
+set this and do not know whether it is how the image ships. The VM has an **ephemeral external IP**
+(confirmed in the console; not captured), so the internet can reach it in principle, and the
+only thing in the way was the VPC firewall: one ingress rule, IAP on TCP 22, with everything else denied by
+default. Nothing was exposed, because nothing important listens, but there was no host layer behind the
+VPC, so a mistaken VPC rule would have exposed every port. The misconfiguration demo planned for the end of
+this phase does exactly that on purpose.
+
+Before switching, the `public` zone's contents were read, so SSH over IAP would not be cut off:
+`services: cockpit dhcpv6-client ssh`. The SSH service is there. The host firewall allows SSH from any source;
+the restriction to Google's IAP range is the VPC rule's job, not the host's.
+
+```bash
+sudo firewall-cmd --set-default-zone=public
+sudo firewall-cmd --get-active-zones
+```
+
+![Default zone changed to public](images/gcp-vm-default-zone-public.png)
+
+`eth0` now sits in `public`. Rollback from a still-open session is `--set-default-zone=trusted`; the change
+is permanent, so a reboot would not undo it.
+
+**Not verified.** A second IAP login after the change, to confirm SSH still passes, was not confirmed. The
+agent stayed active in the dashboard, but I cannot show that its last keep-alive came after the change.
+`cockpit` (web console, 9090) remains allowed in the zone; it is unused and could be removed.
+
+## ICMP through the tunnel
+
+I predicted plain `ping` to the manager's tunnel address would time out: the policy rule is `proto: tcp`, and
+I believed the `tailnet` zone would not pass ICMP. **That prediction was wrong.** Fourteen of fourteen
+replies came back, with round trips of 77 to 329 ms.
+
+The zone listing showed why `firewalld` passed it: `icmp-blocks` was empty, and `firewalld` allows ICMP
+unless told otherwise. Blocking echo requests in the zone, runtime only, changed the result:
+
+```bash
+sudo firewall-cmd --zone=tailnet --add-icmp-block=echo-request
+```
+
+![Ping rejected after the block](images/gcp-ping-icmp-blocked.png)
+
+Every ping now returns "Packet filtered" **from `100.73.251.78`**: the manager's firewall rejected it and said
+so, instead of silently dropping it. Two conclusions:
+
+- The host layer is live and can deny traffic on its own. This is for ICMP only. It does not prove the TCP
+  port restrictions work without the Tailscale policy; that is the separate test below.
+- Tailscale filters packets before the kernel sees them, so for `firewalld` to have rejected the ping, the
+  policy layer had already let ICMP echo through despite the rule saying TCP only. **This is unexplained.**
+  Either the policy in the console differs from the versioned file, or Tailscale has a built-in allowance
+  for echo requests. Comparing the saved policy with [../cloud/tailscale-policy.json](../cloud/tailscale-policy.json)
+  has not been done yet.
+
+The block was then made permanent (`--permanent --zone=tailnet --add-icmp-block=echo-request` and a reload),
+so the zone does what the notes claim: only TCP 1514 and 1515. `tailscale ping`, which is a Tailscale-level
+probe and not ICMP through the tunnel, is unaffected.
+
+The earlier port test also cannot tell a rejection from a drop, since both print "refused/filtered" after a
+timeout. A reject returns immediately; a drop times out. Showing the difference would need a probe that
+reports how it failed.
+
+## Relayed path
+
+`tailscale ping` from the VM to the manager reported every reply `via DERP(fra)`, Tailscale's relay in
+Frankfurt, with round trips between 83 and 352 ms:
+
+![tailscale ping through the relay](images/gcp-tailscale-ping-relay.png)
+
+So the tunnel is relayed, not direct. Relayed traffic is still end to end encrypted, and the latency is
+fine for security events. The likely cause is that the manager sits behind two NATs (VMware's and the home
+router), which often defeats direct connections. **That is a guess.** The VM's host-firewall change could
+also be a factor, and there is no measurement from before it. Two tests would settle it and were
+deliberately set aside: pinging with the zone temporarily back in `trusted`, and `tailscale netcheck` on the
+manager to see its NAT behaviour.
+
 ## Still to do
+
+- [x] Confirm `/etc/resolv.conf`
 
 - [x] Confirm `/etc/resolv.conf` still lists the two original nameservers after `tailscale up`: it lists
       the domain controller first and the NAT gateway second, so `--accept-dns=false` left DNS alone.
@@ -480,7 +634,20 @@ is still the separate test below. The OS Login username in the prompt is redacte
 - [x] Test from `gcp-node01` that the manager's tunnel address answers on TCP 1514 and 1515 and refuses
       22, 443 and 55000: 1514 and 1515 open, the other three refused or filtered (which layer blocked them
       is not shown by this test).
-- [ ] Enrol the Wazuh agent on `gcp-node01` against the manager's tunnel address, using the enrolment
-      password, and confirm it appears as active.
+- [x] Enrol the Wazuh agent on `gcp-node01` against the manager's tunnel address, using the enrolment
+      password: ID 003, active in the dashboard and in `agent_control`.
+- [x] Switch the cloud VM's default `firewalld` zone from `trusted` to `public`, and block ICMP echo in the
+      manager's `tailnet` zone (permanent).
+- [ ] Compare the access policy saved in the Tailscale console with `cloud/tailscale-policy.json`, to explain
+      why ICMP echo passed a TCP-only rule.
+- [ ] Log in to `gcp-node01` through IAP in a new session, to confirm SSH works after the zone change.
+- [ ] Power the Windows VMs on and confirm `DC01` and `WIN10-CLIENT` return to Active after the manager
+      restart.
+- [ ] Optional: remove the unused `cockpit` service from the VM's `public` zone.
+- [ ] Optional: compare the relayed path with the zone back in `trusted`, and run `tailscale netcheck`.
+- [ ] Open the agent's Configuration Assessment page and record the pre-hardening CIS score for `gcp-node01`
+      in `hardening/baseline.md`.
+- [ ] Negative test from the verification plan: plain SSH to the VM's public address from outside IAP should
+      time out.
 - [ ] Ship Cloud Audit Logs into Wazuh (the Wazuh GCP module reads Pub/Sub and Storage), then run the
       deliberate misconfiguration demo.

@@ -57,7 +57,7 @@ the agent has opened it, so the manager can still send commands to the agent ove
 
 | Flow | Tailscale policy | Cloud VPC firewall | Host firewall | Notes |
 |---|---|---|---|---|
-| 1 | `tag:cloud-agent` may reach `tag:manager` on TCP 1514 and 1515 only | Egress allowed by default | Manager: `tailnet` zone allows only 1514 and 1515 | Three independent layers |
+| 1 | `tag:cloud-agent` may reach `tag:manager` on TCP 1514 and 1515 only | Egress allowed by default; it sees only the encrypted tunnel traffic, never port 1514 | Manager: `tailnet` zone allows only 1514 and 1515, with ICMP echo blocked. VM: default zone `public` | Built and working; see the build notes for what the tests do and do not prove |
 | 2 | n/a | Egress allowed by default | n/a | Nothing inbound is needed for it |
 | 3 | n/a | `allow-iap-ssh`: TCP 22 from the IAP range, to VMs tagged `iap-ssh` | VM's own SSH authentication | IAP checks the Google login first |
 | 4 | n/a | n/a | Manager already allows outbound | Needs a credential, see below |

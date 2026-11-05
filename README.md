@@ -15,10 +15,15 @@ from agents on both Windows hosts (Phase 2). Three log sources are verified end 
 events: Sysmon process telemetry, the Windows Security log, and Linux auditd on the manager. Pre-hardening
 CIS compliance baselines are recorded.
 
-Next: Phase 3, extending the lab with a cloud node.
+**Phase 3 in progress.** A GCP node (`gcp-node01`) reports to the on-prem manager through a Tailscale
+tunnel, with an access policy and host firewalls limiting it to the two Wazuh ports. The agent is enrolled
+with a password and shows as active. Still to come: the Cloud Audit Logs integration and the deliberate
+misconfiguration demo, plus a few open checks listed in the Phase 3 notes.
 
 - [docs/phase-1-build-notes.md](docs/phase-1-build-notes.md) — what was built, what broke, how it was verified
 - [docs/phase-2-build-notes.md](docs/phase-2-build-notes.md) — Wazuh deployment, agents, Sysmon, end-to-end checks
+- [docs/phase-3-build-notes.md](docs/phase-3-build-notes.md) — Tailscale, GCP network and VM, agent enrolment, firewall layers
+- [docs/communication-design.md](docs/communication-design.md) — how the cloud node talks to the lab
 - [hardening/baseline.md](hardening/baseline.md) — CIS baseline scores before any hardening
 - [docs/network-plan.md](docs/network-plan.md) — addressing and network design
 - [docs/decisions.md](docs/decisions.md) — the reasoning behind each choice

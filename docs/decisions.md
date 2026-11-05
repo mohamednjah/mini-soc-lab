@@ -21,6 +21,35 @@ Format:
 
 ---
 
+## 2026-11-05 — Block ICMP echo in the manager's tunnel zone
+- **Status:** Accepted
+- **Context:** The `tailnet` zone was meant to admit only TCP 1514 and 1515. A plain `ping` from the cloud
+  VM to the manager's tunnel address was expected to fail and instead succeeded 14 times out of 14.
+  `firewalld` allows ICMP unless a type is blocked, and the zone blocked none. The access policy, whose rule
+  is TCP only, also let it through, which is not yet explained.
+- **Decision:** Add `echo-request` to the zone's ICMP blocks, permanently.
+- **Alternatives considered:** leaving ICMP allowed (harmless in practice, but it makes the stated
+  "two ports only" untrue); adding an ICMP rule to the Tailscale policy so ping is deliberately allowed
+  (nothing needs it).
+- **Consequences:** The zone now matches its description. `tailscale ping` still works for path diagnosis.
+  A side effect is the first independent proof that the host layer can deny traffic without the policy,
+  for ICMP only. The question of why the policy passed ICMP is open.
+
+## 2026-11-05 — Cloud VM host firewall: default zone from `trusted` to `public`
+- **Status:** Accepted
+- **Context:** On inspection the Rocky 10 image's `eth0` was in `firewalld`'s `trusted` zone, which accepts
+  everything. The VM has an ephemeral external IP, so the VPC firewall (one ingress rule: IAP on TCP 22) was
+  the only filter facing the internet. The manager has several layers; the less-trusted cloud node had one.
+- **Decision:** Make `public` the default zone, after reading it to confirm it allows SSH
+  (`cockpit dhcpv6-client ssh`) so IAP access would survive.
+- **Alternatives considered:** leaving `trusted` and relying on the VPC and the Tailscale policy (a
+  legitimate choice, but a single misconfigured VPC rule would then expose every port, and the planned
+  misconfiguration demo does that deliberately); a custom zone with only SSH (more precise, more to maintain).
+- **Consequences:** Defence in depth on the cloud node. The zone allows SSH from any source, so the IAP
+  range restriction still depends on the VPC rule. `cockpit` remains allowed but unused. The change is
+  permanent, so rollback needs a live session. It might have altered the Tailscale path (direct to
+  relayed), which was not measured beforehand.
+
 ## 2026-11-04 — Require a password for Wazuh agent enrolment
 - **Status:** Accepted
 - **Context:** Wazuh's enrolment service on TCP 1515 accepts any agent that can reach it, with no
