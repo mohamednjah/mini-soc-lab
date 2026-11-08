@@ -427,7 +427,8 @@ live use of the access policy and the manager's `tailnet` zone together.
 **What this does not prove.** The script cannot tell a refusal from a silent drop, and it cannot tell which
 layer blocked a port. Two controls both say no to 22, 443 and 55000: the Tailscale policy and the `firewalld`
 zone. A port blocked by either would look identical here. Showing that the `firewalld` layer works on its own
-is still the separate test below. The OS Login username in the prompt is redacted in the screenshot.
+was done later, in "The host firewall layer on its own" below. The OS Login username in the prompt is
+redacted in the screenshot.
 
 ## Installing and enrolling the Wazuh agent
 
@@ -552,7 +553,8 @@ Every ping now returns "Packet filtered" **from `100.73.251.78`**: the manager's
 so, instead of silently dropping it. Two conclusions:
 
 - The host layer is live and can deny traffic on its own. This is for ICMP only. It does not prove the TCP
-  port restrictions work without the Tailscale policy; that is the separate test below.
+  port restrictions work without the Tailscale policy; that test follows in "The host firewall layer on
+  its own".
 - Tailscale filters packets before the kernel sees them, so for `firewalld` to have rejected the ping, the
   policy layer had already let ICMP echo through despite the rule saying TCP only. **This is unexplained.**
   I compared the policy saved in the console with
@@ -583,6 +585,56 @@ also be a factor, and there is no measurement from before it. Two tests would se
 deliberately set aside: pinging with the zone temporarily back in `trusted`, and `tailscale netcheck` on the
 manager to see its NAT behaviour.
 
+## The host firewall layer on its own
+
+Two controls guard the manager's tunnel interface: the Tailscale policy and the `tailnet` zone. Every earlier
+test was blocked by both at once, so none showed that the zone holds if the policy is wrong. The probe was
+first improved so it reports *how* a port fails, not just that it does. A silent drop times out; a
+rejection returns immediately with an error. Run on `gcp-node01` against the manager's tunnel address:
+
+```bash
+for p in 1514 1515 22 443 55000 9200; do
+  printf "port %-6s " $p
+  timeout 6 bash -c "exec 3<>/dev/tcp/100.73.251.78/$p" 2>&1 | head -1
+  [ ${PIPESTATUS[0]} -eq 0 ] && echo OPEN
+done
+```
+
+**Baseline, normal policy.** 1514 and 1515 open; 22, 443, 55000 and 9200 print `Terminated`. That word is
+bash reporting that `timeout` killed the attempt after six seconds, not a network error: the packets got no
+answer at all. 9200 (the Wazuh indexer) was added to the list and is blocked the same way.
+
+![Probe, normal policy](images/tunnel-probe-baseline.png)
+
+**Policy widened.** In the Tailscale console the access rule was temporarily changed to allow
+`tag:cloud-agent` to reach `tag:manager:*` (every TCP port), and the `deny` assertions were removed from the
+policy tests, because the console refuses to save a policy that fails its own tests. Nothing else changed,
+and the versioned file in the repo stayed untouched as the restore point. After allowing time for the policy
+to propagate, the same probe gave:
+
+![Probe, policy widened](images/tunnel-probe-policy-widened.png)
+
+1514 and 1515 were still open, and 22, 443, 55000 and 9200 now failed **immediately** with `No route to
+host`, which is the error a client gets when the far end's firewall sends back an ICMP "host prohibited".
+So with the policy no longer in the way, the manager's `firewalld` rejected every port outside the zone's two.
+
+| State | Ports 22, 443, 55000, 9200 | Stopped by |
+|---|---|---|
+| Normal policy | Silent timeout | The Tailscale policy drops them first |
+| Policy widened | Immediate `No route to host` | `firewalld` rejects them |
+
+The mapping from "timeout" to the policy and "immediate error" to `firewalld` is an interpretation. The
+second half is directly shown by the widened run; the first half follows because only the policy was
+changed between the two runs.
+
+The policy was then restored from the versioned file, and it saved (its tests pass). A final probe matched the baseline but was not captured.
+
+**Limits.** This covers TCP on four ports with the rule widened to all TCP ports. Other ports and UDP were
+not probed. It does not test the reverse (the policy holding with the host firewall open), which I chose
+not to do, since weakening the host firewall on purpose is not worth the risk. During the window the cloud
+node could in principle have tried any port on the manager, with the zone as the only barrier; that is what
+was being tested, and the cloud node is the only machine with that tag.
+
 ## Still to do
 
 - [x] Confirm `/etc/resolv.conf`
@@ -595,8 +647,8 @@ manager to see its NAT behaviour.
 - [x] Disable key expiry for the manager in the console (done; the resulting page was not captured).
 - [x] Put `tailscale0` in its own `firewalld` zone allowing only TCP 1514 and 1515, and check that
       `firewalld` still evaluates tunnel traffic after Tailscale's rules.
-- [ ] Prove the `firewalld` layer on its own once the cloud VM exists: temporarily widen the Tailscale
-      policy to allow all ports from it, confirm 22 and 443 are still refused, then restore the policy.
+- [x] Prove the `firewalld` layer on its own: with the Tailscale policy temporarily widened to all TCP
+      ports, 22, 443, 55000 and 9200 were still rejected (immediately), then the policy was restored.
 - [x] Multi-factor authentication is on for the Tailscale identity provider (not captured). The AWS
       root-user MFA is moot now that AWS is dropped.
 - [ ] GCP guardrails, in order, before any resource is created:

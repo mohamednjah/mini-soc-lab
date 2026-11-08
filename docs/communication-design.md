@@ -110,7 +110,7 @@ Each flow gets a test that can fail:
 
 1. From the VM, 1514 and 1515 on the manager connect; 22, 443 and 55000 do not.
 2. With the Tailscale policy temporarily widened to allow all ports from the VM, 22 and 443 are still refused,
-   which isolates the `firewalld` layer; then the policy is restored.
+   which isolates the `firewalld` layer; then the policy is restored. *Done; see the Phase 3 build notes.*
 3. IAP SSH works for a tagged VM and fails for an untagged one.
 4. The agent shows as active, and a marker event from the VM is searchable in the dashboard.
 5. A Cloud Audit Log event appears in Wazuh through the Pub/Sub module.
