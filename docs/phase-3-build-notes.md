@@ -197,8 +197,16 @@ cannot prevent anything. The trial's own behaviour is the real protection.
 
 ## GCP: the default network
 
-A dedicated project, `mini-soc-lab`, holds everything built for the cloud node, so deleting it removes the
-lot. Enabling the Compute Engine API created a `default` network with four pre-made firewall rules:
+A dedicated project, named `mini-soc`, holds everything built for the cloud node, so deleting it removes the
+lot. Its ID is the name plus six digits and is left out of this repository.
+
+> **Correction (8 November).** Earlier versions of these notes and of the design document called the project
+> `mini-soc-lab`. No such project exists: `gcloud projects list` shows only `mini-soc`, and
+> `gcloud compute instances list` against its ID shows `gcp-node01`. The name came from the repository's
+> name and was never checked against the console. It also explains why a command run with
+> `--project=mini-soc-lab` earlier answered that the Compute API was not enabled: that ID does not exist.
+
+Enabling the Compute Engine API created a `default` network with four pre-made firewall rules:
 
 ![Default firewall rules](images/gcp-default-firewall-rules.png)
 
@@ -635,6 +643,63 @@ not to do, since weakening the host firewall on purpose is not worth the risk. D
 node could in principle have tried any port on the manager, with the zone as the only barrier; that is what
 was being tested, and the cloud node is the only machine with that tag.
 
+## Cloud Audit Logs: the cloud side
+
+The goal is to see changes to the cloud account itself, such as a firewall rule being created, which the
+agent on the VM cannot see because those are API calls to Google. Admin Activity audit logs record them, are
+on by default and cannot be switched off. Wazuh's GCP module reads them from a Pub/Sub subscription. The
+current documentation was read first, which corrected two assumptions: the Wazuh manager already ships the
+module's Python dependencies, so nothing is installed with `pip`; and Wazuh's credentials page grants the
+service account both Pub/Sub Publisher and Subscriber, which is more than a reader needs (see below).
+
+All commands ran in Cloud Shell with the project named explicitly through a variable, `P`, holding the
+project ID, because that shell has pointed at the wrong project before:
+
+```bash
+gcloud services enable pubsub.googleapis.com --project=$P
+gcloud pubsub topics create lab-audit-logs --project=$P
+gcloud pubsub subscriptions create wazuh-pull --topic=lab-audit-logs --project=$P
+```
+
+The sink copies Admin Activity entries, and only those, into the topic. Google gives a sink its own writer
+identity, which has to be allowed to publish before anything is delivered. The permission is on the topic,
+not the project, which is narrower than the example in Google's page:
+
+```bash
+gcloud logging sinks create lab-audit-sink pubsub.googleapis.com/projects/$P/topics/lab-audit-logs \
+  --log-filter='log_id("cloudaudit.googleapis.com/activity")' --project=$P
+W=$(gcloud logging sinks describe lab-audit-sink --project=$P --format='value(writerIdentity)')
+gcloud pubsub topics add-iam-policy-binding lab-audit-logs --member="$W" --role=roles/pubsub.publisher --project=$P
+```
+
+Google's page also mentions a Logs Writer role for destinations. It was not granted, on the belief that
+Pub/Sub does not need it here; if entries do not arrive, that is the first thing to add.
+
+The reader for Wazuh is a service account that starts with no permissions and gets Subscriber on the one
+subscription only:
+
+```bash
+gcloud iam service-accounts create wazuh-pubsub-reader --display-name="Wazuh Pub/Sub reader" --project=$P
+SA="wazuh-pubsub-reader@$P.iam.gserviceaccount.com"
+gcloud pubsub subscriptions add-iam-policy-binding wazuh-pull --member="serviceAccount:$SA" \
+  --role=roles/pubsub.subscriber --project=$P
+gcloud projects get-iam-policy $P --flatten=bindings --filter="bindings.members:wazuh-pubsub-reader" \
+  --format="value(bindings.role)"
+```
+
+The last command printed nothing, so the account holds no project-wide role. This is narrower than Wazuh's
+own instructions (Publisher plus Subscriber, with no stated scope). Whether the module works with only
+Subscriber on one subscription is **not yet tested**; if it fails with a permission error, the missing
+permission gets added and recorded here.
+
+The Cloud Shell screenshots for these steps are not in the repository: each carries the account name, the
+project ID and the project number several times over, and they show nothing the commands above do not.
+
+**Not done yet:** nothing has read from the subscription. The service-account key, its transfer to the
+manager, the module configuration and the first test event come next. The sink has been delivering audit
+entries to the topic since it was created, so messages are accumulating in the subscription; the default
+retention is seven days.
+
 ## Still to do
 
 - [x] Confirm `/etc/resolv.conf`
@@ -658,7 +723,7 @@ was being tested, and the cloud node is the only machine with that tag.
         states there are no automatic charges; when it ends resources stop, and unless the account is
         upgraded during the grace period they are permanently deleted. The cloud node has a hard deadline.
   - [x] Create a dedicated project for the lab so everything can be torn down by deleting it
-        (`mini-soc-lab`).
+        (named `mini-soc`).
   - [x] Set a billing budget with alerts to an address that is checked, as a backstop and to watch how the
         credit is consumed (`lab-budget`, €10, with the Savings options cleared).
   - [ ] Choose a region and use it for everything (an EU region for latency; the always-free `e2-micro` is
@@ -680,7 +745,8 @@ was being tested, and the cloud node is the only machine with that tag.
       `35.235.240.0/20` and target tag `iap-ssh`, and that it is the only rule on `lab-vpc`. The listing
       shows exactly one rule with those values. The range is the one Google's documentation gives for IAP
       TCP forwarding ("all IP addresses that IAP uses for TCP forwarding").
-- [x] Check whether an older `mini-soc` project holds anything: nothing was running in it.
+- [x] ~~Check whether an older `mini-soc` project holds anything~~ Withdrawn: the project list shows only one
+      project named `mini-soc`, and it is the lab project, so there was no older one to check.
 - [x] Log in to `gcp-node01` through IAP with OS Login.
 - [x] Launch the cloud VM with the `iap-ssh` tag (`gcp-node01`, created).
 - [x] Join `gcp-node01` to Tailscale as `tag:cloud-agent` with a tagged auth key: connected, tag applied,
@@ -703,5 +769,10 @@ was being tested, and the cloud node is the only machine with that tag.
 - [x] Record the pre-hardening CIS score for `gcp-node01` in `hardening/baseline.md`: 55%.
 - [ ] Negative test from the verification plan: plain SSH to the VM's public address from outside IAP should
       time out.
+- [x] Cloud Audit Logs, cloud side: Pub/Sub topic, pull subscription, sink (Admin Activity only), writer
+      permission on the topic, reader service account with Subscriber on the subscription.
+- [ ] Cloud Audit Logs, manager side: create the service-account key, move it to `/var/ossec/wodles/gcloud/`
+      (`root:wazuh`, mode 640), delete the downloaded copies, add the `gcp-pubsub` block, restart the
+      manager, and find a test event.
 - [ ] Ship Cloud Audit Logs into Wazuh (the Wazuh GCP module reads Pub/Sub and Storage), then run the
       deliberate misconfiguration demo.

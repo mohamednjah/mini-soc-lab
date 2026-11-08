@@ -21,6 +21,21 @@ Format:
 
 ---
 
+## 2026-11-08 — Wazuh's cloud reader gets one permission on one subscription
+- **Status:** Accepted, not yet proven to work
+- **Context:** The Wazuh GCP module needs a service-account key file on the manager to pull audit logs from
+  Pub/Sub, which is the one exception to the "no key files" guardrail. Wazuh's credentials guide grants the
+  account Pub/Sub Publisher and Subscriber, with no stated scope. The module only reads.
+- **Decision:** Create a dedicated service account with no roles, and grant Subscriber on the single
+  subscription the module reads. The sink's own writer identity separately gets Publisher on the topic only.
+- **Alternatives considered:** following Wazuh's guide as written, at project level (simplest, but a stolen
+  key could then also publish, and the scope would be the whole project); Workload Identity Federation to
+  avoid a key file entirely (it needs an external identity provider, which is out of proportion for a lab).
+- **Consequences:** A stolen key can read audit logs, which name the account and every admin action, and
+  nothing else. It still has to be treated like a password: root-only permissions on the manager, never in
+  the repository, deleted when the trial ends. If the module needs more than Subscriber on that subscription,
+  the extra permission is added and this entry updated, not edited in place.
+
 ## 2026-11-05 — Block ICMP echo in the manager's tunnel zone
 - **Status:** Accepted
 - **Context:** The `tailnet` zone was meant to admit only TCP 1514 and 1515. A plain `ping` from the cloud

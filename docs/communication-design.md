@@ -15,7 +15,7 @@ stateful, so replies to an allowed outbound connection need no inbound rule.
 | Party | Where | Address | Role |
 |---|---|---|---|
 | Wazuh manager | Lab, VMware `VMnet8` | `10.10.10.20` and tunnel `100.73.251.78` (`tag:manager`) | Receives agent events and enrolments |
-| Cloud VM | GCP project `mini-soc-lab`, `lab-vpc` / `lab-subnet` (`europe-west8`) | `10.20.0.0/24`, plus a tunnel address (`tag:cloud-agent`) | Wazuh agent plus Tailscale |
+| Cloud VM | GCP project `mini-soc`, `lab-vpc` / `lab-subnet` (`europe-west8`) | `10.20.0.0/24`, plus a tunnel address (`tag:cloud-agent`) | Wazuh agent plus Tailscale |
 | Admin laptop | Lab host | `10.10.10.1` on `VMnet8` | Administers both |
 | Tailscale | Internet | Coordination and relay servers | Introduces the two nodes |
 | Google IAP | Internet | `35.235.240.0/20` | Gatekeeper for SSH to the cloud VM |
