@@ -695,10 +695,62 @@ permission gets added and recorded here.
 The Cloud Shell screenshots for these steps are not in the repository: each carries the account name, the
 project ID and the project number several times over, and they show nothing the commands above do not.
 
-**Not done yet:** nothing has read from the subscription. The service-account key, its transfer to the
-manager, the module configuration and the first test event come next. The sink has been delivering audit
-entries to the topic since it was created, so messages are accumulating in the subscription; the default
-retention is seven days.
+## Cloud Audit Logs: the key, the module and the first events
+
+**The platform refused to issue a key.** Creating the JSON key in the console failed with "Service account key
+creation is disabled": the organization enforces the constraint `iam.disableServiceAccountKeyCreation`. The
+page says it may come from Google's "Secure by Default" settings; whether it did here was not checked. This
+is the same principle as the project's own "no key files" guardrail, so it was treated as a signal and not a
+bug. Two ways round it were weighed (the decision is in `decisions.md`): override the constraint on this one
+project for a few minutes, or avoid a key entirely by pulling the logs from the VM with an attached service
+account. The override was chosen. I turned enforcement off for the project, downloaded the key, and then restored the policy
+immediately afterwards. None of that was captured.
+
+**The key.** It was copied from the laptop to the manager over `scp`, installed with the owner and mode in
+one step, and the temporary copy shredded:
+
+```bash
+sudo install -m 640 -o root -g wazuh /tmp/gcp-key.json /var/ossec/wodles/gcloud/gcp-credentials.json
+sudo shred -u /tmp/gcp-key.json
+```
+
+The listing afterwards showed `gcp-credentials.json` as `-rw-r-----`, `root:wazuh`, next to Wazuh's own
+module files. The Downloads folder is not synced to OneDrive and the laptop copy was deleted (not captured). Deleting a file does not securely erase it from an SSD, so the real cleanup
+is revoking the key in the console at the end of the trial. The commands ran in a root shell, which was not
+the intent.
+
+**The module.** The config was backed up, then a separate `<ossec_config>` section was appended with the
+module enabled, a one-minute interval, pulling on start, the project, the `wazuh-pull` subscription and the
+credentials path. `wazuh-analysisd -t` printed nothing, and after a restart the log showed only
+`gcp-pubsub: INFO: Module started.`
+
+**How it was verified.** That log line proves the module runs, not that it reads. Its routine activity does
+not appear to be logged at the default level (my belief, not tested), so the checks used the data instead:
+
+- six alerts carrying the GCP integration were in `alerts.json`;
+- peeking at the subscription, without acknowledging, returned zero messages, so Wazuh had taken and
+  acknowledged what was waiting.
+
+So **Subscriber on the one subscription is enough** for the module to pull. Wazuh's guide also grants
+Publisher, which turned out not to be needed for reading.
+
+**What arrived.**
+
+| Rule | Level | Description | Seen |
+|---|---|---|---|
+| 65042 | 3 | GCP notice event, resource type `audited_resource` | 2 |
+| 65043 | 7 | GCP error event, resource type `service_account` | 3 |
+| 65071 | 3 | GCP new key is created for a service account (MITRE T1098.001, Persistence: Additional Cloud Credentials) | 1 |
+
+The 65071 alert is the key created for this module: the SIEM flagged the lab's own credential creation. The
+three level-7 error events on a service account are most likely the blocked key-creation attempts, but the
+API method names were not inspected, so that is an inference. It is also not established which of the
+other actions (creating the service account, the permission bindings) produced the two notice events or
+produced no alert at all; events that match no rule do not appear. The alert screenshots are not kept in
+the repository because they show the project ID.
+
+**Left to do here.** The misconfiguration demo, with a rule that fires on it, and cleanup of the key and the
+subscription at the end of the trial.
 
 ## Still to do
 
@@ -771,8 +823,12 @@ retention is seven days.
       time out.
 - [x] Cloud Audit Logs, cloud side: Pub/Sub topic, pull subscription, sink (Admin Activity only), writer
       permission on the topic, reader service account with Subscriber on the subscription.
-- [ ] Cloud Audit Logs, manager side: create the service-account key, move it to `/var/ossec/wodles/gcloud/`
-      (`root:wazuh`, mode 640), delete the downloaded copies, add the `gcp-pubsub` block, restart the
-      manager, and find a test event.
-- [ ] Ship Cloud Audit Logs into Wazuh (the Wazuh GCP module reads Pub/Sub and Storage), then run the
-      deliberate misconfiguration demo.
+- [x] Cloud Audit Logs, manager side: key created (after a temporary project-level override of the
+      organization's key-creation block, since restored), installed `root:wazuh` mode 640,
+      `gcp-pubsub` block added, six GCP alerts received.
+- [x] Ship Cloud Audit Logs into Wazuh: events flow from the sink through Pub/Sub into alerts.
+- [ ] Inspect the API method names behind the six alerts, to confirm what the three error events are.
+- [ ] Run the deliberate misconfiguration demo: create an over-permissive firewall rule (disabled, so
+      nothing is actually exposed), write a Wazuh rule that fires on it, then fix it.
+- [ ] At the end of the trial: delete the service-account key in the console, and delete the subscription,
+      topic and sink.

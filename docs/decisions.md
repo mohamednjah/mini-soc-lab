@@ -21,6 +21,26 @@ Format:
 
 ---
 
+## 2026-11-08 — Override the organization's key-creation block for one project, briefly
+- **Status:** Accepted
+- **Context:** Creating the service-account key the Wazuh GCP module needs failed: the organization enforces
+  `iam.disableServiceAccountKeyCreation`. The block exists to prevent leaked-key incidents, which is the
+  reason the project's own guardrail said not to use key files. The module has no keyless mode.
+- **Decision:** Switch the constraint off for this one project, create the single key, and restore the
+  policy immediately.
+- **Alternatives considered:** a keyless design, with a service account attached to the VM pulling the logs
+  on a timer and writing them where the local agent reads them. It leaves no key to steal, but needs a
+  service account on a VM that was created without one, a pull script, and custom decoders and rules, because
+  Wazuh's GCP rules expect the module's own event format. Workload Identity Federation needs an external
+  identity provider, which a lab does not have. Overriding at organization level was rejected because it
+  would remove the protection from every other project.
+- **Consequences:** One long-lived secret now sits on the manager, readable by `root` and the `wazuh` group,
+  limited to reading one subscription of audit logs. It must be revoked in the console at the end of the
+  trial; deleting the file is not enough. I did the override and the restoration myself; neither is captured in the repository. The keyless design stays on the
+  table if the key ever feels like too much risk.
+- **Result:** The module pulled successfully with Subscriber on that one subscription, so the narrower role
+  chosen in the entry below held.
+
 ## 2026-11-08 — Wazuh's cloud reader gets one permission on one subscription
 - **Status:** Accepted, not yet proven to work
 - **Context:** The Wazuh GCP module needs a service-account key file on the manager to pull audit logs from
