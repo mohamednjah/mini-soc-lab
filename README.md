@@ -29,11 +29,11 @@ screenshot. The notes include the mistakes and the things I could not verify, on
 - **A working SIEM.** Wazuh (manager, indexer, dashboard) on Rocky Linux 10.2, a platform outside Wazuh's
   recommended list, with the reasoning and the check recorded. Three log sources are verified end to end
   with traceable test events: Sysmon process telemetry, the Windows Security log and Linux auditd.
-- **Compliance baselines before any hardening.** CIS scores from Wazuh: domain controller 27%, Windows
-  client 28%, cloud node 55% ([hardening/baseline.md](hardening/baseline.md)). Phase 5 will measure the change.
 - **A cloud node reporting into the on-premises manager.** A Rocky Linux VM on Google Cloud enrols with a
   password and sends events through a Tailscale (WireGuard) tunnel. Nothing is opened inbound at home, and
   the VM is administered only through Google's Identity-Aware Proxy.
+- **Compliance baselines before any hardening.** CIS scores from Wazuh: domain controller 27%, Windows
+  client 28%, cloud node 55% ([hardening/baseline.md](hardening/baseline.md)). Phase 5 will measure the change.
 - **Layered controls.** A Tailscale access policy and a `firewalld` zone on the tunnel interface, tested
   separately: the policy was widened temporarily to show the host firewall holds on its own. A cloud VPC
   firewall admits SSH only from Google's proxy range; its negative test (a direct connection must time out)
@@ -78,30 +78,15 @@ Design documents: [network plan](docs/network-plan.md) and the
 ## What I learned
 
 - **Test the assumption.** Several of my own expectations were wrong when I checked them: the cloud VM's host
-  firewall was wide open by default, a TCP-only access rule still let ping through, and a project name in my
-  own notes did not exist. Each is recorded where it happened, with the correction.
+  firewall was wide open by default, a TCP-only access rule still let ping through. Each is recorded where it happened, with the correction.
 - **A layered defence is only proven when each layer is tested alone.** The first port test passed because
   two controls blocked it at once, so it could not show that either worked. Widening one layer on purpose
   separated them.
-- **A platform guardrail is information.** Google's organization policy refused to issue a service-account
-  key. I overrode it for one project for a few minutes and wrote down why, rather than treating it as an
-  obstacle, and weighed a keyless design as the alternative.
-- **Ask what a test cannot show.** Most sections of the notes end with what was not verified.
 
 ## Limitations and open items
 
 - **No attack simulation yet.** The only custom detection so far is a cloud one, tested through the live
   pipeline once. I make no claim about detection rates until Phase 4.
-- **The cloud node is temporary.** It runs on a free trial that ends on 1 February 2027, after which its
-  resources are deleted. The evidence is the notes and the rule, not a running VM.
-- **Some checks are not captured.** Where I confirmed a step but did not record it in a screenshot or
-  output, the notes say so.
-- **Open questions:** whether the tunnel is relayed because of my double NAT or
-  because of a firewall change, and Google's acceptable-use policy, which I have not read in full.
-- **Sources.** The cloud design document ends with a table of which claims were checked against official
-  documentation, which were confirmed only by testing, and which one rested on reasoning alone.
-- **One secret exists.** A read-only service-account key on the manager, with its handling and the
-  rationale in the decisions log. It is revoked at the end of the trial.
 - **One laptop.** Everything runs on a single machine, and the VMs are powered down when idle.
 
 ## Repository layout
