@@ -6,6 +6,35 @@ alternatives are in [decisions.md](decisions.md), and the connectivity design is
 [network-plan.md](network-plan.md). AWS was the original choice and was dropped when the account turned out
 not to be eligible for its free plan; the decisions log has the full account.
 
+## Summary and carry-over (phase closed 15 November 2026)
+
+**What was achieved.** A Rocky Linux 10 VM on Google Cloud, `gcp-node01`, is enrolled as a password-protected
+Wazuh agent and reports to the on-premises manager through a Tailscale tunnel. Two controls on the manager's
+side of the tunnel (the Tailscale access policy and a `firewalld` zone) were tested both together and
+separately. The cloud VM's own host firewall was found wide open, and fixed. Cloud Audit Logs reach Wazuh
+through a log sink and Pub/Sub, a custom rule (100500) detects a firewall rule opened to the internet, and the
+demo created, detected and fixed one. The first custom detection card and a pre-hardening CIS baseline for
+the cloud node were written.
+
+**Carried over, not done.** None of these blocks Phase 4. Each is also an unticked item in "Still to do"
+below.
+
+- The negative test for the VPC firewall: a plain SSH connection to the VM's public address, outside the
+  proxy, should time out.
+- Remove the unused `cockpit` service from the VM's `public` zone.
+- Why the tunnel is relayed, not direct. It may be the double NAT in front of the manager or the host
+  firewall change on the VM; no measurement from before the change exists.
+- Why the access policy let ICMP through. The saved policy is identical to the versioned file.
+- The API method names behind the three error events and two notice events from the first audit logs.
+- Whether `DC01` and `WIN10-CLIENT` reconnect after the manager restart for the enrolment password. Phase 4
+  needs those VMs running, so this will be observed there.
+- Google's acceptable-use policy, which I have not read in full.
+- Two-step verification on the Google account that owns the cloud billing, and storing the enrolment
+  password in a password manager. Neither is verified here.
+- **At the end of the trial (1 February 2027):** revoke the service-account key in the console, and delete
+  the subscription, topic, sink and the VM. Resources are deleted by Google after the grace period anyway,
+  but the key is not safe to leave to that.
+
 ## Tailscale on the manager
 
 Tailscale is installed on the Rocky manager itself, so the tunnel terminates where the service runs,
@@ -831,13 +860,15 @@ the outputs are quoted as text.
         (named `mini-soc`).
   - [x] Set a billing budget with alerts to an address that is checked, as a backstop and to watch how the
         credit is consumed (`lab-budget`, €10, with the Savings options cleared).
-  - [ ] Choose a region and use it for everything (an EU region for latency; the always-free `e2-micro` is
-        US-only and not needed during the trial).
+  - [x] Choose a region and use it for everything: everything is in `europe-west8` (Milan), an EU region
+        for latency; the always-free `e2-micro` is US-only and not needed during the trial.
   - [x] Check the project's default network for pre-created firewall rules that allow SSH or RDP from
         anywhere: it had them, so it was deleted and replaced by `lab-vpc`.
   - [x] Confirm `lab-vpc` has no firewall rules of its own and that its subnet is `10.20.0.0/24` in
         `europe-west8`.
-  - [ ] No service-account key files: attach a minimally-scoped service account to the VM instead.
+  - [x] ~~No service-account key files~~ **Superseded.** The VM has no service account and no key. One key
+        exists, on the manager, for Wazuh's GCP module, with a deliberate, recorded override of the
+        organization's block (see the decisions log, 2026-11-08).
   - [ ] Read Google's acceptable-use and security-testing terms. The testing page was read (no notice
         needed, own projects only). I still have to read the acceptable-use policy. Offensive testing stays on the local hosts regardless.
 - [x] Restart `wazuh-manager` so the enrolment password takes effect; it is active and listening on 1515.

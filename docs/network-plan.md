@@ -19,7 +19,7 @@ Phase 3.
 │  ┌────────────────────┐  ┌────────────────────┐  ┌──────────────────┐ │
 │  │ Domain controller  │  │ Wazuh manager      │  │ Windows client   │ │
 │  │ 10.10.10.10        │  │ 10.10.10.20        │  │ 10.10.10.30      │ │
-│  │ Server 2022        │  │ Rocky Linux 9      │  │ Windows 10/11    │ │
+│  │ Server 2022        │  │ Rocky Linux 10.2   │  │ Windows 10 Pro   │ │
 │  │ AD DS + DNS        │  │ SIEM / XDR / SCA   │  │ Domain-joined    │ │
 │  └─────────┬──────────┘  └────────────────────┘  └────────┬─────────┘ │
 │            │                                              │           │
@@ -34,7 +34,7 @@ Phase 3.
 | `10.10.10.1` | Host machine (VMware virtual adapter) | Reserved by VMware. How you SSH/RDP in from Windows. |
 | `10.10.10.2` | NAT gateway | Reserved by VMware. Default gateway for all VMs. |
 | `10.10.10.10` | Domain controller | Windows Server 2022, AD DS + DNS for `soclab.local` |
-| `10.10.10.20` | Wazuh manager | Rocky Linux 9 — manager, indexer, dashboard |
+| `10.10.10.20` | Wazuh manager | Rocky Linux 10.2 — manager, indexer, dashboard |
 | `10.10.10.30` | Windows client | Domain-joined workstation |
 | `10.10.10.40` | *reserved* | Kali attacker VM (Phase 4) |
 | `10.10.10.50` | *reserved* | Spare / second client |
