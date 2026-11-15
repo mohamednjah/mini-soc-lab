@@ -749,8 +749,61 @@ other actions (creating the service account, the permission bindings) produced t
 produced no alert at all; events that match no rule do not appear. The alert screenshots are not kept in
 the repository because they show the project ID.
 
-**Left to do here.** The misconfiguration demo, with a rule that fires on it, and cleanup of the key and the
-subscription at the end of the trial.
+**Left to do here.** Cleanup of the key and the subscription at the end of the trial.
+
+## Misconfiguration demo: an open firewall rule, detected and fixed
+
+The demo shows a dangerous cloud change being noticed by the SIEM, with before-and-after evidence. The
+mistake is the most common cloud one: a firewall rule that allows a management port from the whole internet.
+It is a **simulation**: the rules were created *disabled* and aimed at a network tag no VM carries
+(`demo-no-such-tag`), so nothing was ever exposed. The audit log records the creation either way, and the
+detection is on the change, not on any traffic. I confirmed the first rule's state with `describe`:
+disabled, source `0.0.0.0/0`, target tag `demo-no-such-tag`.
+
+**The terms.** Google's penetration-testing page says no prior notice or approval is needed and that tests
+must stay within your own projects and not affect other customers. It defers to the Acceptable Use Policy
+for what is prohibited, and **I have not read that policy in full**. The demo only changes a setting in the lab's own project, with no
+scanning or traffic against anything; I do not expect a conflict, but that is an expectation, not a check.
+
+**Before.** `gcloud compute firewall-rules list --filter="network:lab-vpc"` showed one rule, `allow-iap-ssh`,
+enabled. (An earlier attempt used `--network` on `list`, which that command does not accept; the filter form
+is the right one.)
+
+**The first mistake.** A rule `demo-open-ssh` (TCP 22 from `0.0.0.0/0`, disabled) was created. Two alerts
+reached Wazuh, both from the built-in rule 65053, "GCP firewall rule created" (level 3, MITRE T1562). So
+Wazuh already saw the event, but nothing said it was dangerous. The event's fields included the method name
+(`v1.compute.firewalls.insert`), `request.sourceRanges`, `request.alloweds`, `request.disabled`,
+`request.targetTags` and `request.direction`, which is what a rule can be built on. The field names were read
+from the real alert, not guessed.
+
+**The rule.** Custom rule 100500 ([../cloud/wazuh/100500-gcp-firewall-open-to-internet.xml](../cloud/wazuh/100500-gcp-firewall-open-to-internet.xml),
+card in [../detections/cards/gcp-firewall-rule-open-to-internet.md](../detections/cards/gcp-firewall-rule-open-to-internet.md))
+was appended to `local_rules.xml` after a backup and a check that the ID was unused. `wazuh-analysisd -t`
+printed nothing, and the manager was restarted. It fires when a firewall rule is inserted, patched or
+updated with `0.0.0.0/0` among its source ranges, at level 12, mapped to T1562.007.
+
+**The second mistake.** A rule `demo-open-rdp` (TCP 3389, same source, disabled) was created, deliberately on
+a different port to show the rule is not tied to SSH. One alert came back from rule 100500:
+
+```
+"rule":{"level":12,"description":"GCP firewall rule created or changed to allow 0.0.0.0/0 (open to the internet)","id":"100500","mitre":{"id":["T1562.007"],"tactic":["Defense Evasion"],"technique":["Disable or Modify Cloud Firewall"]}
+```
+
+Searching that alert for rule names found `demo-open-rdp` and not `demo-open-ssh`, as it should be, since the
+SSH rule was created before the custom rule was loaded. The count of ten printed by that search is the
+number of times the name appears in the matched text, not ten alerts.
+
+**The fix.** Both demo rules were deleted and the list showed only `allow-iap-ssh` again. The deletions
+were logged too: four alerts from the built-in rule 65054, "GCP firewall rule deleted" (level 3, T1562.007),
+two per rule. Together with the two alerts per creation, that shows Compute writes two audit entries per
+operation. The custom rule fired once per creation, so only one of the two entries carries the request
+fields; that is an inference from the counts.
+
+**Limits.** The rule was tested through the live pipeline, not with `wazuh-logtest`. It fires even for a
+disabled rule (as here), does not look at whether the rule allows or denies, ignores the port, and misses
+IPv6 and wide ranges that are not exactly `0.0.0.0/0`. Those false positives and gaps are listed in the card
+as tuning work. The Cloud Shell screenshots for this demo are not in the repository, for the reasons above;
+the outputs are quoted as text.
 
 ## Still to do
 
@@ -785,8 +838,8 @@ subscription at the end of the trial.
   - [x] Confirm `lab-vpc` has no firewall rules of its own and that its subnet is `10.20.0.0/24` in
         `europe-west8`.
   - [ ] No service-account key files: attach a minimally-scoped service account to the VM instead.
-  - [ ] Read Google's acceptable-use and security-testing terms. Offensive testing stays on the local hosts
-        regardless, so they only touch the misconfiguration demo, which changes this project's own settings.
+  - [ ] Read Google's acceptable-use and security-testing terms. The testing page was read (no notice
+        needed, own projects only). I still have to read the acceptable-use policy. Offensive testing stays on the local hosts regardless.
 - [x] Restart `wazuh-manager` so the enrolment password takes effect; it is active and listening on 1515.
 - [x] Confirm `DC01` and `WIN10-CLIENT` still show as active after the restart (confirmed earlier, not captured).
 - [x] The enrolment password was rotated after it appeared in a screenshot (not captured). A password
@@ -828,7 +881,7 @@ subscription at the end of the trial.
       `gcp-pubsub` block added, six GCP alerts received.
 - [x] Ship Cloud Audit Logs into Wazuh: events flow from the sink through Pub/Sub into alerts.
 - [ ] Inspect the API method names behind the six alerts, to confirm what the three error events are.
-- [ ] Run the deliberate misconfiguration demo: create an over-permissive firewall rule (disabled, so
-      nothing is actually exposed), write a Wazuh rule that fires on it, then fix it.
+- [x] Run the deliberate misconfiguration demo: an over-permissive firewall rule (disabled, so nothing was
+      exposed), a custom Wazuh rule (100500) that fired on it, then the fix; see the section above.
 - [ ] At the end of the trial: delete the service-account key in the console, and delete the subscription,
       topic and sink.

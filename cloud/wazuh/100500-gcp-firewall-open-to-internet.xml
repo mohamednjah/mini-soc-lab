@@ -1,0 +1,13 @@
+<!-- Custom Wazuh rule for GCP audit logs. Goes in /var/ossec/etc/rules/local_rules.xml.
+     Detection card: detections/cards/gcp-firewall-rule-open-to-internet.md -->
+<group name="gcp,custom,">
+  <rule id="100500" level="12">
+    <if_group>gcp</if_group>
+    <field name="gcp.protoPayload.methodName" type="pcre2">v1\.compute\.firewalls\.(insert|patch|update)</field>
+    <field name="gcp.protoPayload.request.sourceRanges" type="pcre2">0\.0\.0\.0/0</field>
+    <description>GCP firewall rule created or changed to allow 0.0.0.0/0 (open to the internet)</description>
+    <mitre>
+      <id>T1562.007</id>
+    </mitre>
+  </rule>
+</group>

@@ -6,4 +6,8 @@ misconfiguration-then-fix demo. Also holds the versioned Tailscale access policy
 
 No secrets, keys, or credentials belong in this folder — see `.gitignore` at the repo root.
 
-*(Empty until Phase 3.)*
+- `tailscale-policy.json`: the versioned Tailscale access policy
+- `wazuh/`: the Wazuh GCP module configuration (an example, no secrets) and the custom rule 100500 for the
+  firewall misconfiguration demo
+
+The build and the reasoning are in [../docs/phase-3-build-notes.md](../docs/phase-3-build-notes.md).

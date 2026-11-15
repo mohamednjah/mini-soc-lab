@@ -1,0 +1,12 @@
+<!-- Appended to /var/ossec/etc/ossec.conf on the manager as its own <ossec_config> section.
+     The credentials file is a service-account key: root:wazuh, mode 640, never in this repository. -->
+<ossec_config>
+  <gcp-pubsub>
+    <enabled>yes</enabled>
+    <pull_on_start>yes</pull_on_start>
+    <interval>1m</interval>
+    <project_id>YOUR_PROJECT_ID</project_id>
+    <subscription_name>wazuh-pull</subscription_name>
+    <credentials_file>/var/ossec/wodles/gcloud/gcp-credentials.json</credentials_file>
+  </gcp-pubsub>
+</ossec_config>

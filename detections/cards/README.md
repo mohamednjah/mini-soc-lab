@@ -12,4 +12,8 @@ One markdown file per detection, documenting it like a working analyst would:
 - Tuning notes: <what was changed and why>
 ```
 
-*(Empty until Phase 4.)*
+Cards so far:
+
+- [GCP firewall rule created or changed to allow 0.0.0.0/0](gcp-firewall-rule-open-to-internet.md): Phase 3, cloud
+
+*(The Windows and Linux cards arrive in Phase 4.)*
