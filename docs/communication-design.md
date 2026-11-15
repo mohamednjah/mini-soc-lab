@@ -116,26 +116,8 @@ Each flow gets a test that can fail:
 4. The agent shows as active, and a marker event from the VM is searchable in the dashboard.
 5. A Cloud Audit Log event appears in Wazuh through the Pub/Sub module.
 
-## Decisions still open
-
-1. **Require a password for agent enrolment?** *Decided: yes.* Enrolment on 1515 needs no password by
-   default. The Tailscale policy already limits who can reach it, so the exposure is small, but a password
-   closes the gap if the tag is ever misused. It applies to new enrolments only: the agents already
-   enrolled on the Windows hosts keep their keys.
-2. **Cloud audit logs now or later?** *Decided: later.* Flow 4 adds a service-account key and a logging
-   sink, so it is a separate step after the VM and agent work.
-3. **VM image and size.** *Checked, to be confirmed.* The public `rocky-linux-cloud` project publishes Rocky
-   Linux 10 (family `rocky-linux-10`, plus `rocky-linux-10-optimized-gcp`, a gVNIC variant, and arm64
-   families that do not fit `e2`), dated 26 October 2026, alongside 9 and 8. In `europe-west8-a`, `e2-micro`
-   (1 GB), `e2-small` (2 GB) and `e2-medium` (4 GB) are all offered. Proposed: `rocky-linux-10` on `e2-small`.
-4. **Hostname.** *Decided: `gcp-node01`.* It becomes the agent name in every alert, so it is fixed before
-   enrolment.
 
 ## Sources and verification status
-
-This document began as my own design, written from general knowledge of the products involved, and cited
-nothing. On 15 November 2026 each factual claim was checked against the vendor's documentation. "Tested"
-means the lab itself showed it.
 
 | Claim | Status | Source or basis |
 |---|---|---|
