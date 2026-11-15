@@ -6,7 +6,7 @@ alternatives are in [decisions.md](decisions.md), and the connectivity design is
 [network-plan.md](network-plan.md). AWS was the original choice and was dropped when the account turned out
 not to be eligible for its free plan; the decisions log has the full account.
 
-## Summary and carry-over (phase closed 15 November 2026)
+## Summary (phase closed 15 November 2026)
 
 **What was achieved.** A Rocky Linux 10 VM on Google Cloud, `gcp-node01`, is enrolled as a password-protected
 Wazuh agent and reports to the on-premises manager through a Tailscale tunnel. Two controls on the manager's
@@ -15,7 +15,6 @@ separately. The cloud VM's own host firewall was found wide open, and fixed. Clo
 through a log sink and Pub/Sub, a custom rule (100500) detects a firewall rule opened to the internet, and the
 demo created, detected and fixed one. The first custom detection card and a pre-hardening CIS baseline for
 the cloud node were written.
-
 
 ## Tailscale on the manager
 
@@ -321,7 +320,7 @@ The account name, project ID and public address are redacted in the screenshot.
 **Direct connection test.** Direct connection attempts to that public address on TCP 22, 3389, 443
 and 1514 all failed, so nothing answers on it. A timeout cannot distinguish a filtering firewall from a
 service that is not yet running, so the stronger evidence will be IAP login working while direct SSH does not. Where these attempts were
-made from was not recorded, so a repeat from the home network is on the carry-over list.
+made from was not recorded, so a repeat from the home network is still to do.
 
 **Login through IAP.** The first `gcloud compute ssh --tunnel-through-iap` generated an SSH key pair in
 Cloud Shell and registered its public half in the account's OS Login profile; nothing was written into the

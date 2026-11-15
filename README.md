@@ -15,7 +15,7 @@ screenshot. The notes include the mistakes and the things I could not verify, on
 | 0 | Repository scaffold, decisions log, hypervisor choice | Done |
 | 1 | Isolated network, Active Directory domain `soclab.local`, domain-joined client | Done: [notes](docs/phase-1-build-notes.md) |
 | 2 | Wazuh 4.14.9 SIEM/XDR on Rocky Linux 10.2, Sysmon, auditd, Windows Security log, CIS baselines | Done: [notes](docs/phase-2-build-notes.md) |
-| 3 | Hybrid cloud node on Google Cloud, joined to the lab over Tailscale; cloud audit logs into Wazuh; a deliberate misconfiguration, detected and fixed | Done, with a short carry-over list: [notes](docs/phase-3-build-notes.md) |
+| 3 | Hybrid cloud node on Google Cloud, joined to the lab over Tailscale; cloud audit logs into Wazuh; a deliberate misconfiguration, detected and fixed | Done: [notes](docs/phase-3-build-notes.md) |
 | 4 | Detection engineering: simulated attacks, Sigma rules, detection cards, incident write-ups | Next |
 | 5 | CIS hardening with before/after compliance scores | Planned |
 | 6 | Ansible: rebuild the lab from code | Planned |
@@ -96,7 +96,7 @@ Design documents: [network plan](docs/network-plan.md) and the
   resources are deleted. The evidence is the notes and the rule, not a running VM.
 - **Some checks are not captured.** Where I confirmed a step but did not record it in a screenshot or
   output, the notes say so.
-- **Open questions, listed in the Phase 3 notes:** whether the tunnel is relayed because of my double NAT or
+- **Open questions:** whether the tunnel is relayed because of my double NAT or
   because of a firewall change, and Google's acceptable-use policy, which I have not read in full.
 - **Sources.** The cloud design document ends with a table of which claims were checked against official
   documentation, which were confirmed only by testing, and which one rested on reasoning alone.
