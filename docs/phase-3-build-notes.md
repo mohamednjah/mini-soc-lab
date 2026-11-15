@@ -19,16 +19,16 @@ the cloud node were written.
 **Carried over, not done.** None of these blocks Phase 4. Each is also an unticked item in "Still to do"
 below.
 
-- The negative test for the VPC firewall: a plain SSH connection to the VM's public address, outside the
-  proxy, should time out.
+- Repeat the direct-connection test against the VM's public address from the home network, and record where it
+  ran from; a plain SSH attempt outside the proxy should time out.
 - Remove the unused `cockpit` service from the VM's `public` zone.
 - Why the tunnel is relayed, not direct. It may be the double NAT in front of the manager or the host
   firewall change on the VM; no measurement from before the change exists.
 - ~~Why the access policy let ICMP through.~~ Resolved: Tailscale documents that ICMP is allowed wherever
   other traffic between the pair is.
 - The API method names behind the three error events and two notice events from the first audit logs.
-- Whether `DC01` and `WIN10-CLIENT` reconnect after the manager restart for the enrolment password. Phase 4
-  needs those VMs running, so this will be observed there.
+- Confirm `DC01` and `WIN10-CLIENT` reconnect once the VMs are powered on again. Phase 4 needs them running,
+  so this will be observed there.
 - Google's acceptable-use policy, which I have not read in full.
 - Two-step verification on the Google account that owns the cloud billing, and storing the enrolment
   password in a password manager. Neither is verified here.
@@ -337,9 +337,10 @@ public address, which it needs to reach the internet for Tailscale and package i
 
 The account name, project ID and public address are redacted in the screenshot.
 
-**Negative test from the internet.** Direct connection attempts to that public address on TCP 22, 3389, 443
+**Direct connection test.** Direct connection attempts to that public address on TCP 22, 3389, 443
 and 1514 all failed, so nothing answers on it. A timeout cannot distinguish a filtering firewall from a
-service that is not yet running, so the stronger evidence will be IAP login working while direct SSH does not.
+service that is not yet running, so the stronger evidence will be IAP login working while direct SSH does not. Where these attempts were
+made from was not recorded, so a repeat from the home network is on the carry-over list.
 
 **Login through IAP.** The first `gcloud compute ssh --tunnel-through-iap` generated an SSH key pair in
 Cloud Shell and registered its public half in the account's OS Login profile; nothing was written into the
@@ -537,8 +538,8 @@ marker event was sent. The dashboard screenshots are not kept in the repository.
 The enrolment password worked on first use, which also shows the manager was restarted after the rotation.
 
 **Windows agents.** `agent_control -l` listed `DC01` and `WIN10-CLIENT` as `Disconnected`. Both VMs had been
-shut down to save RAM, so this is expected, but it means the check that they survive the manager restart
-has not been observed yet.
+shut down to save RAM, so this is expected. Both were seen active right after the enrolment-password restart
+(not captured); they have not been seen since the VMs were powered on again.
 
 ## Host firewall on the cloud VM
 
@@ -840,8 +841,6 @@ the outputs are quoted as text.
 
 ## Still to do
 
-- [x] Confirm `/etc/resolv.conf`
-
 - [x] Confirm `/etc/resolv.conf` still lists the two original nameservers after `tailscale up`: it lists
       the domain controller first and the NAT gateway second, so `--accept-dns=false` left DNS alone.
 - [x] Write the access policy (tags `tag:manager` and `tag:cloud-agent`; the cloud VM may reach the manager
@@ -854,7 +853,7 @@ the outputs are quoted as text.
       ports, 22, 443, 55000 and 9200 were still rejected (immediately), then the policy was restored.
 - [x] Multi-factor authentication is on for the Tailscale identity provider (not captured). The AWS
       root-user MFA is moot now that AWS is dropped.
-- [ ] GCP guardrails, in order, before any resource is created:
+- [ ] GCP guardrails (set up before the resources were created; two sub-items remain open):
   - [ ] Confirm 2-Step Verification is on for the Google account that owns the GCP billing account, and
         whether it is the same account as the Tailscale identity provider.
   - [ ] Do **not** use *Upgrade*. The trial ($300, shown as €269) expires 1 February 2027 and Google
@@ -901,14 +900,13 @@ the outputs are quoted as text.
 - [x] Compare the access policy saved in the Tailscale console with `cloud/tailscale-policy.json`: found
       identical. The ICMP result was later explained by Tailscale's documentation (see above).
 - [x] Log in to `gcp-node01` through IAP in a new session after the zone change: it works.
-- [ ] Power the Windows VMs on and confirm `DC01` and `WIN10-CLIENT` return to Active after the manager
-      restart. **Skipped for now** (the VMs are off to save RAM). Until then, the
-      claim that existing agents survive the enrolment-password restart is unverified.
+- [ ] Power the Windows VMs on and confirm `DC01` and `WIN10-CLIENT` return to Active. Not done yet (the VMs
+      are off to save RAM); they were last seen active right after the enrolment-password restart.
 - [ ] Optional: remove the unused `cockpit` service from the VM's `public` zone.
 - [ ] Optional: compare the relayed path with the zone back in `trusted`, and run `tailscale netcheck`.
 - [x] Record the pre-hardening CIS score for `gcp-node01` in `hardening/baseline.md`: 55%.
-- [ ] Negative test from the verification plan: plain SSH to the VM's public address from outside IAP should
-      time out.
+- [ ] Repeat the direct-connection test against the VM's public address from the home network, recording
+      where it ran from (the earlier attempts did not); plain SSH outside IAP should time out.
 - [x] Cloud Audit Logs, cloud side: Pub/Sub topic, pull subscription, sink (Admin Activity only), writer
       permission on the topic, reader service account with Subscriber on the subscription.
 - [x] Cloud Audit Logs, manager side: key created (after a temporary project-level override of the

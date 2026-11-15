@@ -4,7 +4,8 @@ Append-only record of the *why* behind the build. Newest entry at the top.
 Each entry is a real decision (a fork with alternatives), not a task — "installed Wazuh" is a
 task; "chose Wazuh over ELK" is a decision.
 
-Never edit or delete a past entry. If a decision changes, add a **new** entry with
+Never edit or delete a past entry, with one exception: once the outcome of a decision is known, a final
+**Result** line may be added to it. If a decision changes, add a **new** entry with
 `Status: Superseded by [YYYY-MM-DD entry title]` or `Status: Reversed`, and say why the original
 call didn't hold up. The reversals are as valuable as the original decisions.
 
