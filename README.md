@@ -43,7 +43,7 @@ screenshot. The notes include the mistakes and the things I could not verify, on
   is opened to the whole internet. The demo created, detected and fixed such a rule, using a disabled
   rule that targets no machine so nothing was ever exposed
   ([detection card](detections/cards/gcp-firewall-rule-open-to-internet.md)).
-- **A decisions log with reversals.** [17 entries](docs/decisions.md), including the ones that did not hold up:
+- **A decisions log with reversals.** [18 entries](docs/decisions.md), including the ones that did not hold up:
   the move from AWS to Google Cloud, and corrections to claims I had made too confidently.
 
 ## Architecture
@@ -96,9 +96,10 @@ Design documents: [network plan](docs/network-plan.md) and the
   resources are deleted. The evidence is the notes and the rule, not a running VM.
 - **Some checks are not captured.** Where I confirmed a step but did not record it in a screenshot or
   output, the notes say so.
-- **Open questions, listed in the Phase 3 notes:** why the access policy let ICMP through, whether the tunnel
-  is relayed because of my double NAT or because of a firewall change, and Google's acceptable-use policy,
-  which I have not read in full.
+- **Open questions, listed in the Phase 3 notes:** whether the tunnel is relayed because of my double NAT or
+  because of a firewall change, and Google's acceptable-use policy, which I have not read in full.
+- **Sources.** The cloud design document ends with a table of which claims were checked against official
+  documentation, which were confirmed only by testing, and which one rested on reasoning alone.
 - **One secret exists.** A read-only service-account key on the manager, with its handling and the
   rationale in the decisions log. It is revoked at the end of the trial.
 - **One laptop.** Everything runs on a single machine, and the VMs are powered down when idle.

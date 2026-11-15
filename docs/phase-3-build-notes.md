@@ -24,7 +24,8 @@ below.
 - Remove the unused `cockpit` service from the VM's `public` zone.
 - Why the tunnel is relayed, not direct. It may be the double NAT in front of the manager or the host
   firewall change on the VM; no measurement from before the change exists.
-- Why the access policy let ICMP through. The saved policy is identical to the versioned file.
+- ~~Why the access policy let ICMP through.~~ Resolved: Tailscale documents that ICMP is allowed wherever
+  other traffic between the pair is.
 - The API method names behind the three error events and two notice events from the first audit logs.
 - Whether `DC01` and `WIN10-CLIENT` reconnect after the manager restart for the enrolment password. Phase 4
   needs those VMs running, so this will be observed there.
@@ -387,7 +388,9 @@ screenshot alone proves nothing; the admin console is the evidence. It lists `gc
 **Key expiry.** Both machines show "Expiry disabled". The manager needed that setting changed by hand after
 it was tagged, but this VM has it without any action. That fits the earlier surprise being specific to a
 device tagged after it had already joined, whereas this one joined with a tagged auth key from the start.
-This is an inference from one example, not something that was tested.
+This was first an inference from one example. Tailscale's tags documentation later confirmed it: key expiry
+is disabled by default when a device is first tagged and authenticated, and changing tags afterwards does not
+alter expiry unless the device re-authenticates, which is exactly what happened on the manager.
 
 The Machines page itself is not in the repository.
 
@@ -593,12 +596,13 @@ so, instead of silently dropping it. Two conclusions:
   port restrictions work without the Tailscale policy; that test follows in "The host firewall layer on
   its own".
 - Tailscale filters packets before the kernel sees them, so for `firewalld` to have rejected the ping, the
-  policy layer had already let ICMP echo through despite the rule saying TCP only. **This is unexplained.**
-  I compared the policy saved in the console with
+  policy layer had already let ICMP echo through despite the rule saying TCP only. **At the time this was
+  unexplained.** I compared the policy saved in the console with
   [../cloud/tailscale-policy.json](../cloud/tailscale-policy.json) and found them identical (not captured),
-  which rules out a leftover rule. What remains is that Tailscale itself lets ICMP echo through. That is
-  an inference from the one observation, not something confirmed in Tailscale's documentation, and it means
-  the policy layer cannot be relied on to stop ICMP.
+  which ruled out a leftover rule. **Later resolved from Tailscale's documentation** (policy syntax page): when
+  traffic is allowed between a pair of addresses, ICMP is allowed between them too. So ICMP between two nodes
+  is permitted whenever any traffic between them is, whatever `proto` says, and the policy layer is not
+  where ICMP is stopped. That makes the `firewalld` block the right place for it.
 
 The block was then made permanent (`--permanent --zone=tailnet --add-icmp-block=echo-request` and a reload),
 so the zone does what the notes claim: only TCP 1514 and 1515. `tailscale ping`, which is a Tailscale-level
@@ -894,8 +898,8 @@ the outputs are quoted as text.
       password: ID 003, active in the dashboard and in `agent_control`.
 - [x] Switch the cloud VM's default `firewalld` zone from `trusted` to `public`, and block ICMP echo in the
       manager's `tailnet` zone (permanent).
-- [x] Compare the access policy saved in the Tailscale console with `cloud/tailscale-policy.json`: reported
-      identical, so the ICMP result is not explained by the policy text (see above).
+- [x] Compare the access policy saved in the Tailscale console with `cloud/tailscale-policy.json`: found
+      identical. The ICMP result was later explained by Tailscale's documentation (see above).
 - [x] Log in to `gcp-node01` through IAP in a new session after the zone change: it works.
 - [ ] Power the Windows VMs on and confirm `DC01` and `WIN10-CLIENT` return to Active after the manager
       restart. **Skipped for now** (the VMs are off to save RAM). Until then, the

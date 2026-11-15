@@ -45,13 +45,14 @@ stateful, so replies to an allowed outbound connection need no inbound rule.
 | # | Flow | Started by | Direction at the receiver | Port |
 |---|---|---|---|---|
 | 1 | Agent events and enrolment: cloud VM to manager, through the tunnel | Cloud VM | Inbound to the manager | TCP 1514 (events), 1515 (enrolment) |
-| 2 | Tailscale control and relay | Both nodes | Outbound only | HTTPS 443, UDP for direct paths |
+| 2 | Tailscale control and relay | Both nodes | Outbound only | HTTPS 443; UDP 41641 and STUN 3478 for direct paths |
 | 3 | Administration: laptop to cloud VM | Google IAP, for the laptop | Inbound to the cloud VM | TCP 22, from `35.235.240.0/20` only |
 | 4 | Cloud audit logs: manager pulls from Pub/Sub | Manager | Outbound only | HTTPS 443 to Google APIs |
 | 5 | Administration: laptop to manager | Laptop | Inbound to the manager | Unchanged, over `VMnet8` |
 
 There is no flow in which the manager connects to the cloud VM. A TCP agent connection is bidirectional once
-the agent has opened it, so the manager can still send commands to the agent over that same connection.
+the agent has opened it, so the manager can still send commands to the agent over that same connection
+(this last point was not checked against Wazuh's documentation; see "Sources and verification status").
 
 ## Controls on each flow
 
@@ -129,3 +130,32 @@ Each flow gets a test that can fail:
    (1 GB), `e2-small` (2 GB) and `e2-medium` (4 GB) are all offered. Proposed: `rocky-linux-10` on `e2-small`.
 4. **Hostname.** *Decided: `gcp-node01`.* It becomes the agent name in every alert, so it is fixed before
    enrolment.
+
+## Sources and verification status
+
+This document began as my own design, written from general knowledge of the products involved, and cited
+nothing. On 15 November 2026 each factual claim was checked against the vendor's documentation. "Tested"
+means the lab itself showed it.
+
+| Claim | Status | Source or basis |
+|---|---|---|
+| Agent events use TCP 1514 and enrolment TCP 1515; the dashboard is 443, the API 55000, the indexer 9200 | Confirmed | [Wazuh architecture: required ports](https://documentation.wazuh.com/current/getting-started/architecture.html). UDP on 1514 exists but is off by default |
+| Agent traffic is encrypted by Wazuh itself (AES) | Confirmed | Same page. It is therefore encrypted twice inside the Tailscale tunnel |
+| Enrolment password: `use_password`, a root-owned `authd.pass` with mode 640, a manager restart | Confirmed | [Wazuh: password authentication](https://documentation.wazuh.com/current/user-manual/agent/agent-enrollment/security-options/using-password-authentication.html). On the agent the documented method is an `authd.pass` file, which is what the lab used |
+| An agent must not be newer than its manager | Confirmed | Wazuh's [compatibility matrix](https://documentation.wazuh.com/current/upgrade-guide/compatibility-matrix/index.html): the manager must always be the same version or newer than its agents |
+| The Wazuh GCP module needs a credentials file; the manager already ships its dependencies | Confirmed | Wazuh's [Pub/Sub](https://documentation.wazuh.com/current/cloud-security/gcp/supported-services/pubsub.html), [dependencies](https://documentation.wazuh.com/current/cloud-security/gcp/prerequisites/dependencies.html) and [credentials](https://documentation.wazuh.com/current/cloud-security/gcp/prerequisites/credentials.html) pages. Their guide grants more roles than the lab used; the narrower grant worked (tested) |
+| A log sink to Pub/Sub needs its writer identity to hold Publisher | Confirmed | Google's [sink documentation](https://cloud.google.com/logging/docs/export/configure_export_v2) |
+| Tailscale needs outbound TCP 443 (control and relays), UDP 41641 and STUN 3478 (direct paths), and no inbound port | Confirmed | Tailscale's [firewall ports](https://tailscale.com/kb/1082/firewall-ports) |
+| The access policy is default-deny, and a policy that fails its tests is rejected | Confirmed | Tailscale's [policy syntax](https://tailscale.com/kb/1337/policy-syntax). Also tested: widening the policy needed the deny tests removed before it would save |
+| **ICMP is allowed between two nodes whenever any traffic between them is** | Confirmed, and it **corrected the lab's notes** | Same page. Earlier notes called the ICMP result unexplained; see the decisions log, 2026-11-15 |
+| Tagged devices have key expiry disabled by default, and re-tagging later does not change it | Confirmed | Tailscale's [tags](https://tailscale.com/kb/1068/tags). This explained the manager needing a manual change and the VM not |
+| IAP reaches a VM from `35.235.240.0/20`, on TCP ports such as 22 | Confirmed | Google's [IAP TCP forwarding](https://cloud.google.com/iap/docs/using-tcp-forwarding) |
+| A VPC allows all egress and denies all ingress by default; rules are stateful; target tags select VMs | Confirmed | Google's [VPC firewall rules](https://cloud.google.com/firewall/docs/firewalls). It adds a caveat: anyone who can edit an instance can change its network tags, so the `iap-ssh` tag is not a strong boundary on its own, and Google recommends target service accounts for stricter control |
+| The `trusted` zone accepts everything | Confirmed, and tested | [firewalld zones](https://firewalld.org/documentation/man-pages/firewalld.zones.html) |
+| `firewalld` allows ICMP unless a type is blocked | Implied by the documentation, **tested** | The zones page says only that listed types are blocked. The lab showed ping passing until `echo-request` was blocked |
+| Google requires no notice to test your own project | Confirmed | Google's [penetration-testing policy](https://support.google.com/cloud/answer/6262505). I have not read its Acceptable Use Policy in full |
+| The manager can still send commands over the connection an agent opened | **Not verified** | Wazuh's agent page does not say; written from general knowledge |
+| The failure-mode list | **My reasoning**, not documented behaviour | Not checked |
+| The agent flow passes three independent layers | **Wrong as first drafted** | Corrected after testing: the VPC firewall never sees the agent flow; the two layers that do are the Tailscale policy and the manager's host firewall |
+
+Wording is paraphrased; open the linked page for the exact text.

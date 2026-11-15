@@ -21,6 +21,18 @@ Format:
 
 ---
 
+## 2026-11-15 — Correction: the Tailscale policy allows ICMP wherever it allows traffic
+- **Status:** Accepted. Corrects a point in the 2026-11-05 entry on blocking ICMP in the tunnel zone.
+- **Context:** That entry recorded that a ping crossed the tunnel although the access rule says TCP only, and
+  called it unexplained. Checking Tailscale's policy documentation for the design write-up found the answer:
+  when traffic is allowed between a pair of addresses, ICMP is allowed between them too. My prediction
+  that the policy would stop ping was wrong for that reason.
+- **Decision:** No change. The permanent ICMP block in the `tailnet` zone stays, and is now the intended and
+  only place ICMP is controlled on the tunnel, not a workaround for a mystery.
+- **Alternatives considered:** none; this is a correction, not a choice.
+- **Consequences:** The open question about the policy is closed. Any future rule that allows traffic between
+  the cloud node and the manager also allows ICMP between them, so the host-level block has to remain.
+
 ## 2026-11-08 — Override the organization's key-creation block for one project, briefly
 - **Status:** Accepted
 - **Context:** Creating the service-account key the Wazuh GCP module needs failed: the organization enforces
