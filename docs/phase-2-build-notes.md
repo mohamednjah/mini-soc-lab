@@ -498,8 +498,6 @@ two hours (14:13 UTC is 16:13 local). That offset matters when matching events a
 - [x] Open the firewall: ports 443, 1514, 1515 and 55000 over TCP.
 - [x] Confirm the rules are live: `sudo firewall-cmd --list-ports`.
 - [x] Reach the dashboard at `https://10.10.10.20` from the lab host and log in.
-- [ ] *Deferred to Phase 5:* identify the source of the 191 alerts present before any agent enrolled,
-      most likely the manager's own configuration findings.
 - [x] Check for SELinux denials (`ausearch -m avc -ts recent`) — none, with SELinux still enforcing.
 - [x] Snapshot the host once the stack is confirmed healthy (`02-wazuh-installed`), giving a rollback
       point with Wazuh installed and no agents enrolled.
@@ -522,8 +520,6 @@ two hours (14:13 UTC is 16:13 local). That offset matters when matching events a
 - [x] Investigate the two level-15 alerts mapped to Ingress Tool Transfer (T1105): benign, from the
       client — a PowerShell script-policy test file and an Edge component unpack.
 - [x] Record the rule behind those two alerts: 92213, checked against the 4.14.9 ruleset.
-- [ ] *Deferred to Phase 4:* name the other top Sysmon alerts (a PowerShell-use rule and a
-      discovery-activity rule), which the dashboard truncated. Their detection cards will need them.
 
 ## Phase 2 outcome
 
