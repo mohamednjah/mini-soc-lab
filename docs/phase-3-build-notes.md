@@ -16,26 +16,6 @@ through a log sink and Pub/Sub, a custom rule (100500) detects a firewall rule o
 demo created, detected and fixed one. The first custom detection card and a pre-hardening CIS baseline for
 the cloud node were written.
 
-**Carried over, not done.** None of these blocks Phase 4. Each is also an unticked item in "Still to do"
-below.
-
-- The negative test for the VPC firewall: a plain SSH connection to the VM's public address, outside the
-  proxy, should time out.
-- Remove the unused `cockpit` service from the VM's `public` zone.
-- Why the tunnel is relayed, not direct. It may be the double NAT in front of the manager or the host
-  firewall change on the VM; no measurement from before the change exists.
-- ~~Why the access policy let ICMP through.~~ Resolved: Tailscale documents that ICMP is allowed wherever
-  other traffic between the pair is.
-- The API method names behind the three error events and two notice events from the first audit logs.
-- Whether `DC01` and `WIN10-CLIENT` reconnect after the manager restart for the enrolment password. Phase 4
-  needs those VMs running, so this will be observed there.
-- Google's acceptable-use policy, which I have not read in full.
-- Two-step verification on the Google account that owns the cloud billing, and storing the enrolment
-  password in a password manager. Neither is verified here.
-- **At the end of the trial (1 February 2027):** revoke the service-account key in the console, and delete
-  the subscription, topic, sink and the VM. Resources are deleted by Google after the grace period anyway,
-  but the key is not safe to leave to that.
-
 ## Tailscale on the manager
 
 Tailscale is installed on the Rocky manager itself, so the tunnel terminates where the service runs,
